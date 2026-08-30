@@ -5,7 +5,7 @@ services:
     restart: always
 
     ports:
-      - "127.0.0.1:${DNSMGR_FRONTEND_PORT:-8080}:8080"
+      - "127.0.0.1:${DNSMGR_FRONTEND_PORT:-19103}:8080"
 
     read_only: true
     tmpfs:

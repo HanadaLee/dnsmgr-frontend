@@ -1,7 +1,7 @@
 {
   "name": "dnsmgr-frontend",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Independent shadcn/ui frontend for dnsmgr-helper",
   "type": "module",
   "scripts": {
