@@ -1,0 +1,26 @@
+services:
+  dnsmgr-frontend:
+    image: "${DNSMGR_FRONTEND_IMAGE:-registry.hanada.info/hanada/dnsmgr-frontend:latest}"
+    container_name: dnsmgr-frontend
+    restart: always
+
+    ports:
+      - "127.0.0.1:${DNSMGR_FRONTEND_PORT:-8080}:8080"
+
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 16
+
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+    stop_grace_period: 10s

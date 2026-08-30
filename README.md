@@ -45,6 +45,33 @@ npm run build
 
 Vite 会同时调整资源地址，React Router 会从同一个 base path 读取路由；Web API 始终使用同源根路径 `/api/web/v1/`。nginx 的 `try_files` 必须回退到对应的 `index.html`。
 
+## nginx 容器
+
+仓库提供面向最终根路径部署的多阶段镜像。Node.js 构建阶段执行 lint 和 Vite build；运行层使用官方 `nginx:stable-alpine-slim`，不包含 Node.js、npm、源码、开发依赖或构建缓存，只保留 nginx 最小运行环境、配置和 `dist` 静态文件：
+
+```powershell
+docker build --build-arg APP_VERSION=0.1.0 -t dnsmgr-frontend:local .
+$env:DNSMGR_FRONTEND_IMAGE = 'dnsmgr-frontend:local'
+$env:DNSMGR_FRONTEND_PORT = '18080'
+docker compose up -d
+```
+
+默认镜像为 `registry.hanada.info/hanada/dnsmgr-frontend:latest`，宿主机只在 `127.0.0.1:${DNSMGR_FRONTEND_PORT:-8080}` 提供服务。容器内 nginx 监听非特权端口 `8080`，以非 root 用户运行，并明确固定 `worker_processes 1`；常驻 nginx 进程只有一个 master 和一个 worker。
+
+内层 nginx 只负责静态资源、SPA fallback、缓存和 `/healthz`，不代理 helper。外层 OpenResty 应先匹配 `/api/web/v1/`、`/cas/`、`/login`、`/logout`，再把页面请求代理到前端容器，例如：
+
+```nginx
+location / {
+    proxy_http_version 1.1;
+    proxy_pass http://127.0.0.1:18080;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $edge_request_scheme;
+}
+```
+
+GitLab CI 使用与 dnsmgr-helper 相同的 `debian-x86_64`、`debian-aarch64` Runner 和 `HARBOR_USERNAME`、`HARBOR_PASSWORD` 变量，发布 `${VERSION}` 与 `latest` 多架构 manifest。根目录 `VERSION` 必须与 `package.json` 版本一致。
+
 ## 验证
 
 ```powershell
