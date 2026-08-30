@@ -4,7 +4,7 @@
 
 当前实现：
 
-- CAS / dnsmgr 双登录态边界与 JSON 401 恢复页
+- helper 自主管理的 CAS / dnsmgr 双登录态边界与 JSON 401 恢复页
 - 响应式 shadcn Sidebar 控制台布局
 - 登录身份、上游版本和适配能力概览
 - 域名搜索、分页、平台/到期/分类信息
@@ -52,4 +52,4 @@ npm run lint
 npm run build
 ```
 
-生产路径融合、现有 CAS 适配器保留方式和私有原版入口见 `dnsmgr-helper/docs/openresty-sso.md`。
+生产路径融合、helper 接管 CAS 和私有原版入口见 `dnsmgr-helper/docs/openresty-sso.md`。

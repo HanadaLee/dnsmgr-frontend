@@ -38,7 +38,7 @@ export function DashboardPage() {
         <ShieldCheckIcon />
         <AlertTitle>安全的只读迁移阶段</AlertTitle>
         <AlertDescription>
-          CAS 负责身份，原 dnsmgr 的 user_token 负责最终业务权限；helper 不直接访问数据库，也不接受任意上游路径。
+          CAS 验票和 dnsmgr 托管登录均由 helper 完成；user_token 仍负责最终业务权限，当前只读接口尚不直接查询数据库。
         </AlertDescription>
       </Alert>
 
