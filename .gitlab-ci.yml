@@ -60,7 +60,36 @@ verify:
         --build-arg APP_VERSION="${VERSION}" \
         --tag "dnsmgr-frontend:verify-${CI_COMMIT_SHORT_SHA}" \
         .
+    - |
+      container_name="dnsmgr-frontend-verify-${CI_JOB_ID}"
+
+      docker run --detach \
+        --name "$container_name" \
+        --read-only \
+        --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+        --cap-drop ALL \
+        --security-opt no-new-privileges:true \
+        "dnsmgr-frontend:verify-${CI_COMMIT_SHORT_SHA}"
+
+      healthy=0
+      for attempt in $(seq 1 10); do
+        if docker exec "$container_name" \
+          wget -q -O /dev/null http://127.0.0.1:8080/healthz; then
+          healthy=1
+          break
+        fi
+        sleep 1
+      done
+
+      if [ "$healthy" -ne 1 ]; then
+        docker logs "$container_name"
+        exit 1
+      fi
+
+      docker exec "$container_name" /usr/sbin/nginx -T 2>&1 \
+        | grep -Eq '^worker_processes[[:space:]]+1;'
   after_script:
+    - docker rm -f "dnsmgr-frontend-verify-${CI_JOB_ID}" || true
     - docker image rm "dnsmgr-frontend:verify-${CI_COMMIT_SHORT_SHA}" || true
 
 build-amd64:
