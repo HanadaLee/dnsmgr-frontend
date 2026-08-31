@@ -56,7 +56,7 @@ Vite 会同时调整资源地址，React Router 会从同一个 base path 读取
 仓库提供面向最终根路径部署的多阶段镜像。Node.js 构建阶段执行 lint、单元测试和 Vite build；运行层使用官方 `nginx:stable-alpine-slim`，不包含 Node.js、npm、源码、开发依赖或构建缓存，只保留 nginx 最小运行环境、配置和 `dist` 静态文件：
 
 ```powershell
-docker build --build-arg APP_VERSION=0.2.3 -t dnsmgr-frontend:local .
+docker build --build-arg APP_VERSION=0.2.4 -t dnsmgr-frontend:local .
 $env:DNSMGR_FRONTEND_IMAGE = 'dnsmgr-frontend:local'
 $env:DNSMGR_FRONTEND_PORT = '19103'
 docker compose up -d

@@ -265,7 +265,7 @@ function AppShellContent() {
 
   return (
     <>
-      <Sidebar collapsible="icon" variant="inset">
+      <Sidebar className="z-30" collapsible="icon" variant="inset">
         <SidebarHeader className="p-3 group-data-[collapsible=icon]:p-2">
           <NavLink
             to="/"
@@ -389,7 +389,7 @@ function AppShellContent() {
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
-      <SidebarInset>
+      <SidebarInset className="md:!m-0 md:!rounded-none md:!shadow-none">
         <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-background/90 px-4 backdrop-blur md:px-6">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="my-auto h-4" />
