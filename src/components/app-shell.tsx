@@ -3,8 +3,8 @@ import { useEffect } from "react";
 import {
   BookOpenIcon,
   CalendarClockIcon,
-  ChevronsUpDownIcon,
   CloudIcon,
+  EllipsisVerticalIcon,
   FileClockIcon,
   GaugeIcon,
   Globe2Icon,
@@ -352,9 +352,9 @@ function AppShellContent() {
                   {session.user.email ?? session.user.name}
                 </span>
               </span>
-              <ChevronsUpDownIcon className="group-data-[collapsible=icon]:hidden" />
+              <EllipsisVerticalIcon className="group-data-[collapsible=icon]:hidden" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent side="top" align="start" className="min-w-56">
+            <DropdownMenuContent side="right" align="end" className="min-w-56">
               <DropdownMenuGroup>
                 <DropdownMenuLabel>{session.user.displayName}</DropdownMenuLabel>
                 <DropdownMenuItem
