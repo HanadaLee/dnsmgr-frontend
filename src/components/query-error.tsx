@@ -1,13 +1,13 @@
 import { RefreshCwIcon, ShieldAlertIcon } from 'lucide-react'
 
-import { loginPathFromError } from '@/api/client'
+import { errorMessage, loginPathFromError } from '@/api/client'
 import { LoginRedirect } from '@/auth/login-redirect'
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 
 export function QueryError({ error, retry }: { error: unknown; retry: () => void }) {
   const loginPath = loginPathFromError(error)
-  const message = error instanceof Error ? error.message : '请求失败'
+  const message = errorMessage(error)
 
   if (loginPath) return <LoginRedirect loginPath={loginPath} />
 

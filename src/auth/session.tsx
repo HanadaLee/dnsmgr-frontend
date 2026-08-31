@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { RefreshCwIcon, ServerCrashIcon } from 'lucide-react'
 import { Outlet } from 'react-router-dom'
 
-import { apiGet, ApiClientError, loginPathFromError } from '@/api/client'
+import { apiGet, errorMessage, loginPathFromError } from '@/api/client'
 import { LoginRedirect } from '@/auth/login-redirect'
 import type { DataResponse, WebSession } from '@/api/types'
 import { SessionContext } from '@/auth/session-context'
@@ -30,7 +30,7 @@ function LoadingScreen() {
 }
 
 function ErrorScreen({ error, retry }: { error: unknown; retry: () => void }) {
-  const message = error instanceof Error ? error.message : '无法读取登录状态'
+  const message = errorMessage(error)
 
   return (
     <main className="grid min-h-svh place-items-center bg-muted/30 px-4">
@@ -40,11 +40,11 @@ function ErrorScreen({ error, retry }: { error: unknown; retry: () => void }) {
             <ServerCrashIcon />
           </div>
           <CardTitle>暂时无法进入控制台</CardTitle>
-          <CardDescription>dnsmgr-helper 未能返回有效登录状态，请检查服务后重试。</CardDescription>
+          <CardDescription>服务暂时无法返回有效登录状态，请稍后重试。</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <Alert variant="destructive">
-            <AlertTitle>{error instanceof ApiClientError ? error.code : 'SESSION_ERROR'}</AlertTitle>
+            <AlertTitle>登录状态读取失败</AlertTitle>
             <AlertDescription>{message}</AlertDescription>
           </Alert>
           <Button className="flex-1" variant="outline" onClick={retry}>

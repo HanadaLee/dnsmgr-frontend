@@ -17,6 +17,7 @@ ENV VITE_BASE_PATH=/
 RUN node --input-type=module -e \
       "import fs from 'node:fs'; const version = fs.readFileSync('VERSION', 'utf8').trim().replace(/^v/, ''); const packageVersion = JSON.parse(fs.readFileSync('package.json', 'utf8')).version; if (version !== packageVersion) throw new Error('VERSION (' + version + ') must match package.json (' + packageVersion + ')')" \
     && npm run lint \
+    && npm test \
     && npm run build
 
 
@@ -25,7 +26,7 @@ FROM nginx:stable-alpine-slim AS runtime
 ARG APP_VERSION=dev
 
 LABEL org.opencontainers.image.title="dnsmgr-frontend" \
-      org.opencontainers.image.description="Static shadcn/ui frontend for dnsmgr-helper" \
+      org.opencontainers.image.description="Static shadcn/ui web console for dnsmgr" \
       org.opencontainers.image.version="${APP_VERSION}"
 
 COPY deploy/nginx.conf /etc/nginx/nginx.conf
