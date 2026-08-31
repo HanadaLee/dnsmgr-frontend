@@ -137,3 +137,9 @@
     @apply bg-primary/20 text-foreground;
     }
 }
+
+@layer components {
+  .lucide-search.absolute {
+    @apply size-4;
+  }
+}

@@ -266,11 +266,11 @@ function AppShellContent() {
   return (
     <>
       <Sidebar collapsible="icon" variant="inset">
-        <SidebarHeader className="p-3">
+        <SidebarHeader className="p-3 group-data-[collapsible=icon]:p-2">
           <NavLink
             to="/"
             onClick={closeMobileSidebar}
-            className="flex h-10 items-center gap-2.5 overflow-hidden rounded-lg px-1.5"
+            className="flex h-10 items-center gap-2.5 overflow-hidden rounded-lg px-1.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
           >
             <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
               <NetworkIcon />
@@ -355,9 +355,8 @@ function AppShellContent() {
               <ChevronsUpDownIcon className="group-data-[collapsible=icon]:hidden" />
             </DropdownMenuTrigger>
             <DropdownMenuContent side="top" align="start" className="min-w-56">
-              <DropdownMenuLabel>{session.user.displayName}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
               <DropdownMenuGroup>
+                <DropdownMenuLabel>{session.user.displayName}</DropdownMenuLabel>
                 <DropdownMenuItem
                   render={
                     <NavLink to="/profile" onClick={closeMobileSidebar} />
@@ -376,13 +375,15 @@ function AppShellContent() {
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                render={<a href={session.sso.logoutPath} />}
-              >
-                <LogOutIcon />
-                退出登录
-              </DropdownMenuItem>
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  variant="destructive"
+                  render={<a href={session.sso.logoutPath} />}
+                >
+                  <LogOutIcon />
+                  退出登录
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         </SidebarFooter>
