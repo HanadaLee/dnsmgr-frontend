@@ -9,24 +9,9 @@ import { SessionContext } from '@/auth/session-context'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
 
 function LoadingScreen() {
-  return (
-    <main className="grid min-h-svh place-items-center bg-muted/30 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <Skeleton className="size-11 rounded-xl" />
-          <Skeleton className="mt-2 h-5 w-36" />
-          <Skeleton className="h-4 w-64 max-w-full" />
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          <Skeleton className="h-8 w-full" />
-          <Skeleton className="h-8 w-4/5" />
-        </CardContent>
-      </Card>
-    </main>
-  )
+  return <main className="min-h-svh bg-background" aria-busy="true" aria-label="正在读取登录状态" />
 }
 
 function ErrorScreen({ error, retry }: { error: unknown; retry: () => void }) {
