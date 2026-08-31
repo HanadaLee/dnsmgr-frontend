@@ -70,6 +70,15 @@ type DeploymentForm = {
   orders: Array<{ id: number; label: string }>;
   accountTypes: CertificateAccountTypeDefinition[];
 };
+type DeploymentAction = {
+  id: number;
+  action: "reset" | "process" | "redeploy";
+};
+const pendingDeploymentStatus: Record<DeploymentAction["action"], string> = {
+  process: "正在发起证书部署…",
+  redeploy: "正在发起重新部署…",
+  reset: "正在重置部署流程…",
+};
 
 export function CertificateDeploymentsPage() {
   const [searchParams] = useSearchParams();
@@ -149,10 +158,7 @@ export function CertificateDeploymentsPage() {
     successMessage: "部署任务状态已更新",
     invalidate: [...invalidate],
   });
-  const action = useApiMutation<
-    { id: number; action: "reset" | "process" | "redeploy" },
-    DataResponse<OperationResult>
-  >({
+  const action = useApiMutation<DeploymentAction, DataResponse<OperationResult>>({
     mutationFn: ({ id, action: operation }) =>
       apiPost(
         `/api/web/v1/certificate-deployments/${id}/${operation === "redeploy" ? "process" : operation}`,
@@ -164,6 +170,8 @@ export function CertificateDeploymentsPage() {
       result.message ?? (variables.action === "process" || variables.action === "redeploy"
         ? "部署任务已完成"
         : "部署任务已重置"),
+    pendingMessage: ({ id, action: operation }) =>
+      `${pendingDeploymentStatus[operation].replace("…", "")}（任务 #${id}）`,
     invalidate: [...invalidate],
   });
   const batch = useApiMutation<
@@ -209,14 +217,21 @@ export function CertificateDeploymentsPage() {
     {
       key: "result",
       label: "上次结果",
-      render: (task) => (
-        <div>
-          <StatusBadge value={task.status} />
-          <p className="mt-1 text-xs text-muted-foreground">
-            {task.error ?? formatDateTime(task.lastRunAt)}
-          </p>
-        </div>
-      ),
+      render: (task) => {
+        const pendingAction = action.isPending && action.variables?.id === task.id
+          ? action.variables.action
+          : undefined;
+        return (
+          <div>
+            <StatusBadge value={pendingAction ? "processing" : task.status} />
+            <p className="mt-1 text-xs text-muted-foreground">
+              {pendingAction
+                ? pendingDeploymentStatus[pendingAction]
+                : task.error ?? formatDateTime(task.lastRunAt)}
+            </p>
+          </div>
+        );
+      },
     },
     {
       key: "active",
@@ -587,12 +602,12 @@ function DeploymentActions({
     typeof useApiMutation<number, DataResponse<OperationResult>>
   >;
   action: ReturnType<
-    typeof useApiMutation<
-      { id: number; action: "reset" | "process" | "redeploy" },
-      DataResponse<OperationResult>
-    >
+    typeof useApiMutation<DeploymentAction, DataResponse<OperationResult>>
   >;
 }) {
+  const pendingAction = action.isPending && action.variables?.id === task.id
+    ? action.variables.action
+    : undefined;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -600,11 +615,12 @@ function DeploymentActions({
           <Button
             size="icon-sm"
             variant="ghost"
-            aria-label={`管理部署任务 ${task.id}`}
+            aria-label={pendingAction ? `部署任务 ${task.id} 正在处理` : `管理部署任务 ${task.id}`}
+            aria-busy={Boolean(pendingAction)}
           />
         }
       >
-        <MoreHorizontalIcon />
+        {pendingAction ? <Spinner /> : <MoreHorizontalIcon />}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
@@ -619,17 +635,21 @@ function DeploymentActions({
             form={form}
           />
           <DropdownMenuItem
+            disabled={action.isPending}
             onClick={() => action.mutate({ id: task.id, action: task.status === "succeeded" ? "redeploy" : "process" })}
           >
-            <PlayIcon />
-            {task.status === "succeeded" ? "重新部署" : "立即部署"}
+            {pendingAction === "process" || pendingAction === "redeploy" ? <Spinner /> : <PlayIcon />}
+            {pendingAction === "process" || pendingAction === "redeploy"
+              ? "正在部署"
+              : task.status === "succeeded" ? "重新部署" : "立即部署"}
           </DropdownMenuItem>
           {task.status === "failed" ? (
             <DropdownMenuItem
+              disabled={action.isPending}
               onClick={() => action.mutate({ id: task.id, action: "reset" })}
             >
-              <RotateCcwIcon />
-              重置流程
+              {pendingAction === "reset" ? <Spinner /> : <RotateCcwIcon />}
+              {pendingAction === "reset" ? "正在重置" : "重置流程"}
             </DropdownMenuItem>
           ) : null}
           {task.processId ? <DeploymentLogDialog task={task} /> : null}

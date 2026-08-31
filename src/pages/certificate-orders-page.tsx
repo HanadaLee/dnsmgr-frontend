@@ -73,6 +73,16 @@ type OrderForm = {
   keyOptions: { RSA: number[]; ECC: number[] };
   defaults: { mode: "managed"; keyType: "RSA"; keySize: number };
 };
+type OrderAction = {
+  id: number;
+  action: "reset" | "revoke" | "process" | "renew";
+};
+const pendingOrderStatus: Record<OrderAction["action"], string> = {
+  process: "正在发起证书处理…",
+  renew: "正在发起证书续签…",
+  reset: "正在重置证书流程…",
+  revoke: "正在吊销证书…",
+};
 const failureLabels: Record<string, string> = {
   purchase: "购买证书失败",
   create: "创建订单失败",
@@ -157,10 +167,7 @@ export function CertificateOrdersPage() {
     successMessage: "自动续签设置已更新",
     invalidate: [...invalidate],
   });
-  const action = useApiMutation<
-    { id: number; action: "reset" | "revoke" | "process" | "renew" },
-    DataResponse<OperationResult>
-  >({
+  const action = useApiMutation<OrderAction, DataResponse<OperationResult>>({
     mutationFn: ({ id, action: operation }) =>
       apiPost(
         `/api/web/v1/certificate-orders/${id}/${operation === "renew" ? "process" : operation}`,
@@ -176,6 +183,8 @@ export function CertificateOrdersPage() {
           : variables.action === "reset"
             ? "证书订单已重置"
             : "证书已吊销"),
+    pendingMessage: ({ id, action: operation }) =>
+      `${pendingOrderStatus[operation].replace("…", "")}（订单 #${id}）`,
     invalidate: [...invalidate],
   });
   const batch = useApiMutation<string, DataResponse<OperationResult>>({
@@ -221,20 +230,29 @@ export function CertificateOrdersPage() {
     {
       key: "status",
       label: "状态",
-      render: (order) => (
-        <div>
-          <StatusBadge value={order.status} />
-          <p className="mt-1 max-w-52 text-xs text-muted-foreground">
-            {order.error ??
-              (order.failureStage
-                ? (failureLabels[order.failureStage] ?? "处理失败")
-                : order.processing
-                  ? "正在处理"
-                  : "")}
-            {order.retryAt ? ` · ${formatDateTime(order.retryAt)} 后重试` : ""}
-          </p>
-        </div>
-      ),
+      render: (order) => {
+        const pendingAction = action.isPending && action.variables?.id === order.id
+          ? action.variables.action
+          : undefined;
+        return (
+          <div>
+            <StatusBadge
+              value={pendingAction === "process" || pendingAction === "renew" ? "processing" : order.status}
+            />
+            <p className="mt-1 max-w-52 text-xs text-muted-foreground">
+              {pendingAction
+                ? pendingOrderStatus[pendingAction]
+                : order.error ??
+                  (order.failureStage
+                    ? (failureLabels[order.failureStage] ?? "处理失败")
+                    : order.processing
+                      ? "正在处理"
+                      : "")}
+              {!pendingAction && order.retryAt ? ` · ${formatDateTime(order.retryAt)} 后重试` : ""}
+            </p>
+          </div>
+        );
+      },
     },
     {
       key: "expires",
@@ -576,12 +594,12 @@ function OrderActions({
     typeof useApiMutation<number, DataResponse<OperationResult>>
   >;
   action: ReturnType<
-    typeof useApiMutation<
-      { id: number; action: "reset" | "revoke" | "process" | "renew" },
-      DataResponse<OperationResult>
-    >
+    typeof useApiMutation<OrderAction, DataResponse<OperationResult>>
   >;
 }) {
+  const pendingAction = action.isPending && action.variables?.id === order.id
+    ? action.variables.action
+    : undefined;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -589,11 +607,12 @@ function OrderActions({
           <Button
             size="icon-sm"
             variant="ghost"
-            aria-label={`管理订单 ${order.id}`}
+            aria-label={pendingAction ? `订单 ${order.id} 正在处理` : `管理订单 ${order.id}`}
+            aria-busy={Boolean(pendingAction)}
           />
         }
       >
-        <MoreHorizontalIcon />
+        {pendingAction ? <Spinner /> : <MoreHorizontalIcon />}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
@@ -610,26 +629,29 @@ function OrderActions({
           {order.mode === "managed" ? (
             order.status === "issued" || order.status === "revoked" ? (
               <DropdownMenuItem
+                disabled={action.isPending}
                 onClick={() => action.mutate({ id: order.id, action: "renew" })}
               >
-                <RotateCcwIcon />
+                {pendingAction === "renew" ? <Spinner /> : <RotateCcwIcon />}
                 {order.status === "issued" ? "立即续签" : "重新申请"}
               </DropdownMenuItem>
             ) : (
               <DropdownMenuItem
+                disabled={action.isPending}
                 onClick={() => action.mutate({ id: order.id, action: "process" })}
               >
-                <PlayIcon />
-                立即处理
+                {pendingAction === "process" ? <Spinner /> : <PlayIcon />}
+                {pendingAction === "process" ? "正在处理" : "立即处理"}
               </DropdownMenuItem>
             )
           ) : null}
           {order.mode === "managed" && ["awaiting-validation", "validating", "failed"].includes(order.status) ? (
             <DropdownMenuItem
+              disabled={action.isPending}
               onClick={() => action.mutate({ id: order.id, action: "reset" })}
             >
-              <RotateCcwIcon />
-              重置流程
+              {pendingAction === "reset" ? <Spinner /> : <RotateCcwIcon />}
+              {pendingAction === "reset" ? "正在重置" : "重置流程"}
             </DropdownMenuItem>
           ) : null}
           {order.processId ? <ProcessLogDialog order={order} /> : null}

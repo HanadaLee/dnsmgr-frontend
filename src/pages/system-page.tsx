@@ -21,7 +21,7 @@ import { useApiMutation } from '@/hooks/use-api-mutation'
 import { displayValue } from '@/lib/format'
 
 export function SystemPage() {
-  return <div className="flex flex-col gap-6"><PageHeader eyebrow="Administration" title="系统设置" description="配置登录验证、通知通道、网络代理与后台任务执行。" /><Tabs defaultValue="notifications"><TabsList variant="line" className="max-w-full overflow-x-auto"><TabsTrigger value="notifications">通知</TabsTrigger><TabsTrigger value="proxy">网络代理</TabsTrigger><TabsTrigger value="cron">后台任务</TabsTrigger><TabsTrigger value="login">登录设置</TabsTrigger></TabsList><TabsContent value="notifications"><NotificationSettingsPanel /></TabsContent><TabsContent value="proxy"><ProxySettingsPanel /></TabsContent><TabsContent value="cron"><CronSettingsPanel /></TabsContent><TabsContent value="login"><LoginSettingsPanel /></TabsContent></Tabs></div>
+  return <div className="flex flex-col gap-6"><PageHeader eyebrow="Administration" title="系统设置" description="配置登录验证、通知通道、网络代理与后台任务执行。" /><Tabs defaultValue="notifications"><TabsList variant="line"><TabsTrigger value="notifications">通知</TabsTrigger><TabsTrigger value="proxy">网络代理</TabsTrigger><TabsTrigger value="cron">后台任务</TabsTrigger><TabsTrigger value="login">登录设置</TabsTrigger></TabsList><TabsContent value="notifications"><NotificationSettingsPanel /></TabsContent><TabsContent value="proxy"><ProxySettingsPanel /></TabsContent><TabsContent value="cron"><CronSettingsPanel /></TabsContent><TabsContent value="login"><LoginSettingsPanel /></TabsContent></Tabs></div>
 }
 
 function LoginSettingsPanel() {

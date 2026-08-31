@@ -54,6 +54,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApiMutation } from "@/hooks/use-api-mutation";
 import { formatDateTime } from "@/lib/format";
@@ -250,6 +251,7 @@ export function OptimizeIpPage() {
   const run = useApiMutation<number, DataResponse<OperationResult>>({
     mutationFn: (id) => apiPost(`/api/web/v1/optimize-ip/tasks/${id}/run`, {}),
     successMessage: (result) => result.message ?? "优选 IP 任务已执行",
+    pendingMessage: (id) => `正在运行优选 IP 任务 #${id}`,
     invalidate: [...invalidate],
   });
   const settingsSave = useApiMutation<
@@ -304,9 +306,11 @@ export function OptimizeIpPage() {
       label: "上次结果",
       render: (task) => (
         <div>
-          <StatusBadge value={task.status} />
+          <StatusBadge value={run.isPending && run.variables === task.id ? "running" : task.status} />
           <p className="mt-1 text-xs text-muted-foreground">
-            {formatDateTime(task.lastRunAt)}
+            {run.isPending && run.variables === task.id
+              ? "正在发起优选 IP 运行…"
+              : formatDateTime(task.lastRunAt)}
           </p>
         </div>
       ),
@@ -331,11 +335,14 @@ export function OptimizeIpPage() {
               <Button
                 size="icon-sm"
                 variant="ghost"
-                aria-label={`管理 ${task.recordName}`}
+                aria-label={run.isPending && run.variables === task.id
+                  ? `${task.recordName} 正在运行`
+                  : `管理 ${task.recordName}`}
+                aria-busy={run.isPending && run.variables === task.id}
               />
             }
           >
-            <MoreHorizontalIcon />
+            {run.isPending && run.variables === task.id ? <Spinner /> : <MoreHorizontalIcon />}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuGroup>
@@ -356,9 +363,9 @@ export function OptimizeIpPage() {
                   )
                 }
               />
-              <DropdownMenuItem onClick={() => run.mutate(task.id)}>
-                <PlayIcon />
-                立即运行
+              <DropdownMenuItem disabled={run.isPending} onClick={() => run.mutate(task.id)}>
+                {run.isPending && run.variables === task.id ? <Spinner /> : <PlayIcon />}
+                {run.isPending && run.variables === task.id ? "正在运行" : "立即运行"}
               </DropdownMenuItem>
               <ConfirmAction
                 trigger={
