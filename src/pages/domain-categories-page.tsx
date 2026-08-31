@@ -49,8 +49,8 @@ export function DomainCategoriesPage() {
         <DropdownMenuTrigger render={<Button size="icon-sm" variant="ghost" aria-label={`管理 ${category.name}`} />}><MoreHorizontalIcon /></DropdownMenuTrigger>
         <DropdownMenuContent align="end"><DropdownMenuGroup>
           <DropdownMenuItem render={<Link to={`/domains?categoryId=${category.id}`} />}>查看域名</DropdownMenuItem>
-          <FormDialog trigger={<DropdownMenuItem onClick={(event) => event.preventDefault()}><PencilIcon />编辑</DropdownMenuItem>} title="编辑分类" fields={fields} initialValues={{ name: category.name, sort: category.sort, remark: category.remark ?? '' }} pending={save.isPending} onSubmit={(values, close) => save.mutate({ id: category.id, body: { name: values.name, sort: Number(values.sort ?? 0), remark: String(values.remark ?? '') || null } }, { onSuccess: close })} />
-          <ConfirmAction trigger={<DropdownMenuItem variant="destructive" onClick={(event) => event.preventDefault()}><Trash2Icon />删除</DropdownMenuItem>} title={`删除 ${category.name}？`} description="仅未关联域名的分类可以删除。" destructive pending={remove.isPending} onConfirm={() => remove.mutate(category.id)} />
+          <FormDialog trigger={<DropdownMenuItem closeOnClick={false}><PencilIcon />编辑</DropdownMenuItem>} title="编辑分类" fields={fields} initialValues={{ name: category.name, sort: category.sort, remark: category.remark ?? '' }} pending={save.isPending} onSubmit={(values, close) => save.mutate({ id: category.id, body: { name: values.name, sort: Number(values.sort ?? 0), remark: String(values.remark ?? '') || null } }, { onSuccess: close })} />
+          <ConfirmAction trigger={<DropdownMenuItem variant="destructive" closeOnClick={false}><Trash2Icon />删除</DropdownMenuItem>} title={`删除 ${category.name}？`} description="仅未关联域名的分类可以删除。" destructive pending={remove.isPending} onConfirm={() => remove.mutate(category.id)} />
         </DropdownMenuGroup></DropdownMenuContent>
       </DropdownMenu>
     ) },

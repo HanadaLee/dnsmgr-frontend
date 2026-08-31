@@ -154,7 +154,7 @@ export function DomainsPage() {
               <DropdownMenuItem onClick={() => refresh.mutate(domain.id)}><RefreshCwIcon />刷新有效期</DropdownMenuItem>
               {canManageDomains ? <DomainEditItem domain={domain} categories={categoryOptions} pending={update.isPending} onSave={(body, close) => update.mutate({ id: domain.id, body }, { onSuccess: close })} /> : null}
               {canManageDomains ? <ConfirmAction
-                trigger={<DropdownMenuItem variant="destructive" onClick={(event) => event.preventDefault()}><Trash2Icon />删除</DropdownMenuItem>}
+                trigger={<DropdownMenuItem variant="destructive" closeOnClick={false}><Trash2Icon />删除</DropdownMenuItem>}
                 title={`删除 ${domain.name}？`}
                 description="域名及其关联数据将从管理系统移除，此操作无法撤销。"
                 destructive pending={remove.isPending} onConfirm={() => remove.mutate(domain.id)}
@@ -261,7 +261,7 @@ export function DomainsPage() {
 function DomainEditItem({ domain, categories, pending, onSave }: { domain: DomainSummary; categories: Array<{ value: string; label: string }>; pending: boolean; onSave: (body: Record<string, unknown>, close: () => void) => void }) {
   return (
     <FormDialog
-      trigger={<DropdownMenuItem onClick={(event) => event.preventDefault()}><PencilIcon />编辑设置</DropdownMenuItem>}
+      trigger={<DropdownMenuItem closeOnClick={false}><PencilIcon />编辑设置</DropdownMenuItem>}
       title={`编辑 ${domain.name}`}
       initialValues={{ hidden: domain.hidden, ssoEnabled: domain.ssoEnabled, noticeEnabled: domain.noticeEnabled, categoryId: String(domain.categoryId ?? 0), expiresAt: domain.expiresAt ?? '', remark: domain.remark ?? '' }}
       fields={[

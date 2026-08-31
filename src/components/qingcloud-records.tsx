@@ -204,8 +204,8 @@ function ChildActions({ record, parentId, options, updatePending, deletePending,
 }) {
   const initial = { parentId, name: record.name, type: record.type, lineId: record.line.id, mode: record.mode ?? 1, value: record.value, ttl: record.ttl ?? 600, mxPriority: record.mxPriority ?? 10, weight: record.weight ?? 1 }
   return <DropdownMenu><DropdownMenuTrigger render={<Button size="icon-sm" variant="ghost" aria-label={`管理 ${record.name} ${record.type}`} />}><MoreHorizontalIcon /></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuGroup>
-    <FormDialog trigger={<DropdownMenuItem onClick={(event) => event.preventDefault()}><PencilIcon />编辑</DropdownMenuItem>} title="编辑解析记录" fields={fields(options)} initialValues={initial} pending={updatePending} onSubmit={(values, close) => onUpdate(payload(values), close)} />
+    <FormDialog trigger={<DropdownMenuItem closeOnClick={false}><PencilIcon />编辑</DropdownMenuItem>} title="编辑解析记录" fields={fields(options)} initialValues={initial} pending={updatePending} onSubmit={(values, close) => onUpdate(payload(values), close)} />
     {['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'NS'].includes(record.type) ? <DropdownMenuItem onClick={onCheck}><CheckCircle2Icon />检查记录</DropdownMenuItem> : null}
-    <ConfirmAction trigger={<DropdownMenuItem variant="destructive" onClick={(event) => event.preventDefault()}><Trash2Icon />删除</DropdownMenuItem>} title="删除解析记录？" description={`${record.name} ${record.type} 将被永久删除。`} destructive pending={deletePending} onConfirm={onDelete} />
+    <ConfirmAction trigger={<DropdownMenuItem variant="destructive" closeOnClick={false}><Trash2Icon />删除</DropdownMenuItem>} title="删除解析记录？" description={`${record.name} ${record.type} 将被永久删除。`} destructive pending={deletePending} onConfirm={onDelete} />
   </DropdownMenuGroup></DropdownMenuContent></DropdownMenu>
 }

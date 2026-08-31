@@ -599,7 +599,7 @@ function OrderActions({
         <DropdownMenuGroup>
           <OrderEditor
             trigger={
-              <DropdownMenuItem onClick={(event) => event.preventDefault()}>
+              <DropdownMenuItem closeOnClick={false}>
                 <PencilIcon />
                 编辑
               </DropdownMenuItem>
@@ -653,7 +653,7 @@ function OrderActions({
             trigger={
               <DropdownMenuItem
                 variant="destructive"
-                onClick={(event) => event.preventDefault()}
+                closeOnClick={false}
               >
                 <ShieldOffIcon />
                 吊销证书
@@ -670,7 +670,7 @@ function OrderActions({
           trigger={
             <DropdownMenuItem
               variant="destructive"
-              onClick={(event) => event.preventDefault()}
+              closeOnClick={false}
             >
               <Trash2Icon />
               删除订单
@@ -996,7 +996,7 @@ function ProcessLogDialog({ order }: { order: CertificateOrderSummary }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <DropdownMenuItem onClick={(event) => event.preventDefault()} />
+          <DropdownMenuItem closeOnClick={false} />
         }
       >
         <FileClockIcon />
@@ -1063,7 +1063,7 @@ function ArtifactsDialog({ order }: { order: CertificateOrderSummary }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <DropdownMenuItem onClick={(event) => event.preventDefault()} />
+          <DropdownMenuItem closeOnClick={false} />
         }
       >
         <DownloadIcon />

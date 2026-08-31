@@ -341,7 +341,7 @@ export function OptimizeIpPage() {
             <DropdownMenuGroup>
               <OptimizeDialog
                 trigger={
-                  <DropdownMenuItem onClick={(event) => event.preventDefault()}>
+                  <DropdownMenuItem closeOnClick={false}>
                     <PencilIcon />
                     编辑
                   </DropdownMenuItem>
@@ -364,7 +364,7 @@ export function OptimizeIpPage() {
                 trigger={
                   <DropdownMenuItem
                     variant="destructive"
-                    onClick={(event) => event.preventDefault()}
+                    closeOnClick={false}
                   >
                     <Trash2Icon />
                     删除

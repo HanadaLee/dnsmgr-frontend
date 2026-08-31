@@ -54,9 +54,9 @@ export function DomainAccountsPage() {
           <DropdownMenuContent align="end"><DropdownMenuGroup>
             <DropdownMenuItem render={<Link to={`/domains?accountId=${account.id}`} />}><Globe2Icon />查看域名</DropdownMenuItem>
             {account.provider.type.toLowerCase() === 'cloudflare' ? <DropdownMenuItem render={<Link to={`/cloudflare?tab=tunnels&accountId=${account.id}`} />}><CloudIcon />管理 Tunnel</DropdownMenuItem> : null}
-            <AccountDialog trigger={<DropdownMenuItem onClick={(event) => event.preventDefault()}><PencilIcon />编辑</DropdownMenuItem>} account={account} providers={providers.data ?? []} />
+            <AccountDialog trigger={<DropdownMenuItem closeOnClick={false}><PencilIcon />编辑</DropdownMenuItem>} account={account} providers={providers.data ?? []} />
             <ConfirmAction
-              trigger={<DropdownMenuItem variant="destructive" onClick={(event) => event.preventDefault()}><Trash2Icon />删除</DropdownMenuItem>}
+              trigger={<DropdownMenuItem variant="destructive" closeOnClick={false}><Trash2Icon />删除</DropdownMenuItem>}
               title={`删除 ${account.name}？`} description="仅无关联域名的账户可以删除，此操作无法撤销。" destructive pending={remove.isPending} onConfirm={() => remove.mutate(account.id)}
             />
           </DropdownMenuGroup></DropdownMenuContent>

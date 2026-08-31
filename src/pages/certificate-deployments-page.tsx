@@ -610,7 +610,7 @@ function DeploymentActions({
         <DropdownMenuGroup>
           <DeploymentEditor
             trigger={
-              <DropdownMenuItem onClick={(event) => event.preventDefault()}>
+              <DropdownMenuItem closeOnClick={false}>
                 <PencilIcon />
                 编辑
               </DropdownMenuItem>
@@ -637,7 +637,7 @@ function DeploymentActions({
             trigger={
               <DropdownMenuItem
                 variant="destructive"
-                onClick={(event) => event.preventDefault()}
+                closeOnClick={false}
               >
                 <Trash2Icon />
                 删除
@@ -878,7 +878,7 @@ function DeploymentLogDialog({ task }: { task: CertificateDeploymentSummary }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <DropdownMenuItem onClick={(event) => event.preventDefault()} />
+          <DropdownMenuItem closeOnClick={false} />
         }
       >
         <FileClockIcon />

@@ -388,10 +388,10 @@ function AppShellContent() {
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
-      <SidebarInset className="min-h-svh overflow-hidden">
+      <SidebarInset>
         <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-background/90 px-4 backdrop-blur md:px-6">
           <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="h-4" />
+          <Separator orientation="vertical" className="my-auto h-4" />
           <span className="text-sm font-medium">
             {currentTitle(location.pathname)}
           </span>

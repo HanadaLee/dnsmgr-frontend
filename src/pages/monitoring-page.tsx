@@ -376,7 +376,7 @@ export function MonitoringPage() {
             <DropdownMenuGroup>
               <MonitoringTaskDialog
                 trigger={
-                  <DropdownMenuItem onClick={(event) => event.preventDefault()}>
+                  <DropdownMenuItem closeOnClick={false}>
                     <PencilIcon />
                     编辑
                   </DropdownMenuItem>
@@ -393,7 +393,7 @@ export function MonitoringPage() {
                 trigger={
                   <DropdownMenuItem
                     variant="destructive"
-                    onClick={(event) => event.preventDefault()}
+                    closeOnClick={false}
                   >
                     <Trash2Icon />
                     删除
@@ -894,7 +894,7 @@ function MonitoringLogsDialog({ task }: { task: MonitoringTask }) {
     >
       <DialogTrigger
         render={
-          <DropdownMenuItem onClick={(event) => event.preventDefault()} />
+          <DropdownMenuItem closeOnClick={false} />
         }
       >
         <FileClockIcon />
