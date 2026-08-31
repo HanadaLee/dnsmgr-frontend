@@ -12,6 +12,7 @@ import { Progress } from '@/components/ui/progress'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
+import { recordValueForSave, recordValuesForSave } from '@/lib/dns-record-value'
 
 type OptimizeRow = {
   key: string
@@ -32,8 +33,8 @@ const publicTargets = [
   { value: 'staticdelivery.nexusmods.com', label: 'NexusMods' },
 ]
 
-function snapshot(record: DnsRecord) {
-  return { id: record.id, name: record.name, type: record.type, value: record.value, values: record.values, lineId: record.line.id, ttl: record.ttl ?? 600, mxPriority: record.mxPriority ?? 1, weight: record.weight ?? 0, remark: record.remark ?? null }
+function snapshot(record: DnsRecord, providerType: string) {
+  return { id: record.id, name: record.name, type: record.type, value: recordValueForSave(providerType, record.type, record.value), values: recordValuesForSave(providerType, record.type, record.values), lineId: record.line.id, ttl: record.ttl ?? 600, mxPriority: record.mxPriority ?? 1, weight: record.weight ?? 0, remark: record.remark ?? null }
 }
 
 async function lineOptions(domainId: number) {
@@ -90,12 +91,12 @@ export function CloudflareOptimizeDialog({ domainId, items, onFinished }: { doma
       const target = row.candidates.find((candidate) => String(candidate.domainId) === row.targetId)
       if (!target || !row.lineId) { row.status = 'failed'; row.message = '写入目标或线路未选择'; setRows([...next]); continue }
       row.status = 'running'; row.message = undefined; setRows([...next])
-      const body = { name: target.recordName, type: recordType, value: targetValue.trim(), lineId: row.lineId, ttl: 600, mxPriority: 1, weight: 0, remark: 'Cloudflare 优选解析' }
+      const body = { name: target.recordName, type: recordType, value: recordValueForSave(target.accountType, recordType, targetValue.trim()), lineId: row.lineId, ttl: 600, mxPriority: 1, weight: 0, remark: 'Cloudflare 优选解析' }
       try {
         const lookup = await apiGet<DataResponse<DnsRecord[]>>(`/api/web/v1/domains/${target.domainId}/record-lookup`, { name: target.recordName })
         const existing = lookup.data.find((record) => ['A', 'AAAA', 'CNAME'].includes(record.type.toUpperCase()) && record.line.id === row.lineId)
         if (existing) {
-          try { await apiPatch<DataResponse<OperationResult>>(`/api/web/v1/domains/${target.domainId}/records/${encodeURIComponent(existing.id)}`, { ...body, current: snapshot(existing) }) }
+          try { await apiPatch<DataResponse<OperationResult>>(`/api/web/v1/domains/${target.domainId}/records/${encodeURIComponent(existing.id)}`, { ...body, current: snapshot(existing, target.accountType) }) }
           catch { await apiPost<DataResponse<OperationResult>>(`/api/web/v1/domains/${target.domainId}/records`, body) }
         } else await apiPost<DataResponse<OperationResult>>(`/api/web/v1/domains/${target.domainId}/records`, body)
         row.status = 'success'; row.message = existing ? '已更新现有记录' : '已新增记录'; success += 1

@@ -11,6 +11,7 @@ import { Progress } from '@/components/ui/progress'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
+import { recordValueForSave } from '@/lib/dns-record-value'
 
 type BatchMode = 'ownership' | 'certificate' | 'dcv'
 type BatchRecord = {
@@ -94,7 +95,7 @@ export function CloudflareBatchTools({ domainId, items, dcvUuid, onFinished }: {
       row.status = 'running'; row.message = undefined; setRows([...next])
       try {
         const line = await apiGet<DataResponse<{ defaultLine: string; lines: CloudflareDnsLine[] }>>(`/api/web/v1/cloudflare/domains/${target.domainId}/default-line`)
-        await apiPost<DataResponse<OperationResult>>(`/api/web/v1/domains/${target.domainId}/records`, { name: target.recordName, type: row.type, value: row.value, lineId: line.data.defaultLine, ttl: 600, mxPriority: 1, weight: 0, remark: modeText[mode].remark })
+        await apiPost<DataResponse<OperationResult>>(`/api/web/v1/domains/${target.domainId}/records`, { name: target.recordName, type: row.type, value: recordValueForSave(target.accountType, row.type, row.value), lineId: line.data.defaultLine, ttl: 600, mxPriority: 1, weight: 0, remark: modeText[mode].remark })
         row.status = 'success'; row.message = '写入成功'; success += 1
       } catch (error) { row.status = 'failed'; row.message = error instanceof Error ? error.message : '写入失败' }
       setProgress(Math.round(((index + 1) / next.length) * 100)); setRows([...next])

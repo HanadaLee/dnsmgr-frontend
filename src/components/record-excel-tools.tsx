@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
+import { recordValueForDisplay, recordValueForSave } from '@/lib/dns-record-value'
 
 type ImportRecord = {
   row: number
@@ -126,19 +127,20 @@ async function getAllRecords(domainId: number, onProgress: (loaded: number, tota
   }
 }
 
-async function createWorkbook(records: DnsRecord[], showWeight: boolean, showRemark: boolean) {
+async function createWorkbook(records: DnsRecord[], options: RecordOptions) {
   const XLSX = await import('xlsx')
   const headers = ['记录ID', '主机记录', '记录类型', '线路值', '线路类型', '记录值', 'TTL']
-  if (showWeight) headers.push('权重')
-  if (showRemark) headers.push('备注')
+  if (options.capabilities.recordWeight) headers.push('权重')
+  if (options.capabilities.recordRemark !== 'none') headers.push('备注')
   headers.push('更新时间', '状态')
   const data: Array<Array<string | number>> = [headers]
   for (const record of records) {
     const type = record.type === 'REDIRECT_URL' ? '显性URL' : record.type === 'FORWARD_URL' ? '隐性URL' : record.type
-    const value = record.type === 'MX' ? `${record.value} | ${record.mxPriority ?? 1}` : record.value
+    const displayValue = recordValueForDisplay(options.providerType, record.type, record.value)
+    const value = record.type === 'MX' ? `${displayValue} | ${record.mxPriority ?? 1}` : displayValue
     const row: Array<string | number> = [record.id, record.name, type, record.line.id, record.line.label, value, record.ttl ?? '',]
-    if (showWeight) row.push(record.weight ?? 0)
-    if (showRemark) row.push(record.remark ?? '')
+    if (options.capabilities.recordWeight) row.push(record.weight ?? 0)
+    if (options.capabilities.recordRemark !== 'none') row.push(record.remark ?? '')
     row.push(record.updatedAt ?? '', record.status === 'enabled' ? '启用' : '暂停')
     data.push(row)
   }
@@ -193,7 +195,7 @@ export function RecordExcelTools({ domainId, domainName, options, onImported }: 
       const record = next[index]
       if (record.error) { setProgress(Math.round(((index + 1) / next.length) * 100)); continue }
       try {
-        await apiPost<DataResponse<OperationResult>>(`/api/web/v1/domains/${domainId}/records`, { name: record.name, type: record.type, value: record.value, lineId: record.lineId, ttl: record.ttl, mxPriority: record.mxPriority, weight: record.weight, remark: record.remark })
+        await apiPost<DataResponse<OperationResult>>(`/api/web/v1/domains/${domainId}/records`, { name: record.name, type: record.type, value: recordValueForSave(options.providerType, record.type, record.value), lineId: record.lineId, ttl: record.ttl, mxPriority: record.mxPriority, weight: record.weight, remark: record.remark })
         record.result = '添加成功'; success += 1
       } catch (nextError) { record.result = `添加失败：${nextError instanceof Error ? nextError.message : '未知错误'}` }
       setRecords([...next]); setProgress(Math.round(((index + 1) / next.length) * 100))
@@ -228,7 +230,7 @@ function ExportButton({ domainId, domainName, options }: { domainId: number; dom
       const records = await getAllRecords(domainId, (loaded, total) => setProgress(`正在查询：${loaded}${total ? ` / ${total}` : ''} 条`))
       if (!records.length) { toast.add({ title: '没有可导出的解析记录', type: 'warning' }); return }
       setProgress(`正在生成 Excel，共 ${records.length} 条…`)
-      const buffer = await createWorkbook(records, options.capabilities.recordWeight, options.capabilities.recordRemark !== 'none')
+      const buffer = await createWorkbook(records, options)
       saveBuffer(buffer, `${domainName}_解析记录_${new Date().toISOString().slice(0, 10)}.xlsx`)
       toast.add({ title: 'Excel 导出成功', description: `共 ${records.length} 条解析记录`, type: 'success' })
     } catch (nextError) { toast.add({ title: 'Excel 导出失败', description: nextError instanceof Error ? nextError.message : '未知错误', type: 'error' }) } finally { setExporting(false); setProgress('') }

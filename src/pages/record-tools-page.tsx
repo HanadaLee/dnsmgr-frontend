@@ -22,11 +22,11 @@ import { Spinner } from '@/components/ui/spinner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/toast'
+import { bulkRecordTextForSave, recordValueForDisplay, recordValueForSave, recordValuesForSave } from '@/lib/dns-record-value'
 import {
   hostForManagedDomain,
   inferRecordType,
   managedDomainCandidates,
-  recordMatchesValue,
 } from '@/lib/record-tools'
 
 type ParsedRecord = {
@@ -34,6 +34,7 @@ type ParsedRecord = {
   row: number
   domainId: number
   domainName: string
+  providerType: string
   domainCandidates: DomainSummary[]
   name: string
   type: string
@@ -45,7 +46,7 @@ type ParsedRecord = {
   message?: string
 }
 
-type GlobalRecord = DnsRecord & { key: string; domainId: number; domainName: string; provider: string }
+type GlobalRecord = DnsRecord & { key: string; domainId: number; domainName: string; provider: string; providerType: string }
 type DomainBatchResult = { id: number; domain: string; provider: string; status: 'pending' | 'running' | 'success' | 'failed'; message?: string }
 
 const globalEditRecordTypes = [
@@ -75,8 +76,8 @@ async function loadAllDomains(): Promise<DomainSummary[]> {
   }
 }
 
-function recordSnapshot(record: DnsRecord) {
-  return { id: record.id, name: record.name, type: record.type, value: record.value, values: record.values, lineId: record.line.id, ttl: record.ttl ?? 600, mxPriority: record.mxPriority ?? 1, weight: record.weight ?? 0, mode: record.mode, parentId: record.parentId, remark: record.remark ?? null }
+function recordSnapshot(record: DnsRecord, providerType?: string) {
+  return { id: record.id, name: record.name, type: record.type, value: recordValueForSave(providerType, record.type, record.value), values: recordValuesForSave(providerType, record.type, record.values), lineId: record.line.id, ttl: record.ttl ?? 600, mxPriority: record.mxPriority ?? 1, weight: record.weight ?? 0, mode: record.mode, parentId: record.parentId, remark: record.remark ?? null }
 }
 
 function operationCounts(message: string | undefined, total: number) {
@@ -144,7 +145,7 @@ function SmartParse({ domains }: { domains: DomainSummary[] }) {
       }
       if (!domain) { errors.push(`第 ${index + 1} 行：无法确定托管域名`); return }
       if (!name || !value) { errors.push(`第 ${index + 1} 行：主机记录和记录值不能为空`); return }
-      drafts.push({ key: `${domain.id}-${index}`, row: index + 1, domainId: domain.id, domainName: domain.name, domainCandidates, name, value, type: defaultType === 'auto' ? inferRecordType(value) : defaultType })
+      drafts.push({ key: `${domain.id}-${index}`, row: index + 1, domainId: domain.id, domainName: domain.name, providerType: domain.provider.type, domainCandidates, name, value, type: defaultType === 'auto' ? inferRecordType(value) : defaultType })
     })
     if (!drafts.length && !errors.length) errors.push('没有有效的解析记录')
     if (errors.length) { setParseError(errors.join('\n')); setRecords([]); return }
@@ -169,7 +170,7 @@ function SmartParse({ domains }: { domains: DomainSummary[] }) {
       const selectedLine = options.lines.find((item) => item.id === line || item.label.toLowerCase() === line.toLowerCase()) ?? options.lines.find((item) => item.id === '0' || item.label === '默认') ?? options.lines[0]
       if (!selectedLine) throw new Error(`${selectedDomain.name} 没有可用解析线路`)
       setRecords((current) => current.map((record) => record.domainName === domainName && record.domainCandidates.some((candidate) => candidate.id === domainId)
-        ? { ...record, domainId, key: `${domainId}-${record.row - 1}`, lineId: selectedLine.id, lineLabel: selectedLine.label, ttl: Math.max(ttl || 600, options.minTtl), status: 'pending', message: undefined }
+        ? { ...record, domainId, providerType: selectedDomain.provider.type, key: `${domainId}-${record.row - 1}`, lineId: selectedLine.id, lineLabel: selectedLine.label, ttl: Math.max(ttl || 600, options.minTtl), status: 'pending', message: undefined }
         : record))
     } catch (nextError) {
       setParseError(nextError instanceof Error ? nextError.message : '读取域名配置失败')
@@ -193,7 +194,7 @@ function SmartParse({ domains }: { domains: DomainSummary[] }) {
       group.forEach((record) => { record.status = 'running' })
       setRecords([...next])
       try {
-        const response = await apiPost<DataResponse<OperationResult>>(`/api/web/v1/domains/${group[0].domainId}/records/bulk`, { recordsText: group.map((record) => `${record.name} ${record.value}`).join('\n'), type: group[0].type, lineId: group[0].lineId, ttl: group[0].ttl, mxPriority: 1, remark: null, proxied: false })
+        const response = await apiPost<DataResponse<OperationResult>>(`/api/web/v1/domains/${group[0].domainId}/records/bulk`, { recordsText: group.map((record) => `${record.name} ${recordValueForSave(record.providerType, record.type, record.value)}`).join('\n'), type: group[0].type, lineId: group[0].lineId, ttl: group[0].ttl, mxPriority: 1, remark: null, proxied: false })
         const counts = operationCounts(response.message, group.length)
         success += counts.success
         group.forEach((record) => {
@@ -214,7 +215,7 @@ function SmartParse({ domains }: { domains: DomainSummary[] }) {
     { key: 'row', label: '行', render: (record) => record.row },
     { key: 'domain', label: '域名', render: (record) => <div><p className="font-medium">{record.domainName}</p><code className="text-xs text-muted-foreground">{record.name}</code></div> },
     { key: 'type', label: '类型', render: (record) => <Badge variant="outline">{record.type}</Badge> },
-    { key: 'value', label: '记录值', render: (record) => <code className="block max-w-sm truncate">{record.value}</code> },
+    { key: 'value', label: '记录值', render: (record) => <code className="block max-w-sm truncate">{recordValueForDisplay(record.providerType, record.type, record.value)}</code> },
     { key: 'line', label: '线路 / TTL', render: (record) => `${record.lineLabel} / ${record.ttl}` },
     { key: 'status', label: '状态', render: (record) => record.status === 'running' ? <span className="inline-flex items-center gap-1 text-sm text-muted-foreground"><Spinner />处理中</span> : <StatusBadge value={record.status} /> },
   ]
@@ -240,16 +241,23 @@ async function searchDomainRecords(domain: DomainSummary, value: string): Promis
       page += 1
     }
   }
+  const matchesValue = (record: DnsRecord) => {
+    const expected = recordValueForDisplay(domain.provider.type, record.type, value)
+    const actual = record.values?.length ? record.values : [record.value]
+    return actual.some((item) => recordValueForDisplay(domain.provider.type, record.type, item) === expected)
+  }
   let matches: DnsRecord[]
   if (domain.provider.type.toLowerCase() === 'qingcloud') {
     const parents = await load({})
     const children: DnsRecord[] = []
     for (const parent of parents) children.push(...await load({ subdomain: parent.id }))
-    matches = children.filter((record) => recordMatchesValue(record, value))
+    matches = children.filter(matchesValue)
+  } else if (domain.provider.type.toLowerCase() === 'huawei') {
+    matches = (await load({})).filter(matchesValue)
   } else {
-    matches = (await load({ value })).filter((record) => recordMatchesValue(record, value))
+    matches = (await load({ value })).filter(matchesValue)
   }
-  return matches.map((record) => ({ ...record, key: `${domain.id}:${record.id}`, domainId: domain.id, domainName: domain.name, provider: domain.provider.label }))
+  return matches.map((record) => ({ ...record, key: `${domain.id}:${record.id}`, domainId: domain.id, domainName: domain.name, provider: domain.provider.label, providerType: domain.provider.type }))
 }
 
 function GlobalSearch({ domains }: { domains: DomainSummary[] }) {
@@ -290,14 +298,17 @@ function GlobalSearch({ domains }: { domains: DomainSummary[] }) {
     const updated = new Set<string>()
     for (const [domainId, records] of groups) {
       try {
-        const response = await apiPost<DataResponse<OperationResult>>(`/api/web/v1/domains/${domainId}/records/batch`, { action: 'value', type: String(values.type), value: String(values.value), records: records.map(recordSnapshot) })
+        const providerType = records[0].providerType
+        const nextType = String(values.type)
+        const nextValue = recordValueForSave(providerType, nextType, String(values.value))
+        const response = await apiPost<DataResponse<OperationResult>>(`/api/web/v1/domains/${domainId}/records/batch`, { action: 'value', type: nextType, value: nextValue, records: records.map((record) => recordSnapshot(record, providerType)) })
         const counts = operationCounts(response.message, records.length)
         success += counts.success
         if (counts.success === records.length) records.forEach((record) => updated.add(record.key))
         else errors.push(`${records[0].domainName}：${response.message ?? `成功 ${counts.success} 条，失败 ${records.length - counts.success} 条`}`)
       } catch (nextError) { errors.push(`${records[0].domainName}：${nextError instanceof Error ? nextError.message : '修改失败'}`) }
     }
-    setResults((current) => current.map((record) => updated.has(record.key) ? { ...record, type: String(values.type), value: String(values.value), values: undefined } : record))
+    setResults((current) => current.map((record) => updated.has(record.key) ? { ...record, type: String(values.type), value: recordValueForSave(record.providerType, String(values.type), String(values.value)), values: undefined } : record))
     close()
     toast.add({ title: '跨域批量修改完成', description: `成功 ${success} 条，失败 ${rows.length - success} 条${errors.length ? `；${errors.slice(0, 3).join('；')}` : ''}`, type: success === rows.length ? 'success' : 'warning' })
     setEditing(false)
@@ -307,7 +318,7 @@ function GlobalSearch({ domains }: { domains: DomainSummary[] }) {
     { key: 'domain', label: '域名', render: (record) => <div><p className="font-medium">{record.domainName}</p><p className="text-xs text-muted-foreground">{record.provider}</p></div> },
     { key: 'name', label: '主机记录', render: (record) => <code>{record.name}</code> },
     { key: 'type', label: '类型', render: (record) => <Badge variant="outline">{record.type}</Badge> },
-    { key: 'value', label: '记录值', render: (record) => <code className="block max-w-md truncate">{record.value}</code> },
+    { key: 'value', label: '记录值', render: (record) => <code className="block max-w-md truncate">{recordValueForDisplay(record.providerType, record.type, record.value)}</code> },
     { key: 'line', label: '线路', render: (record) => record.line.label },
     { key: 'ttl', label: 'TTL', render: (record) => record.ttl ?? '—' },
     { key: 'status', label: '状态', render: (record) => <StatusBadge value={record.status} /> },
@@ -344,7 +355,7 @@ function CrossDomainBatch({ mode, domains, initialIds }: { mode: 'add' | 'edit';
       try {
         const response = mode === 'add'
           ? await apiPost<DataResponse<OperationResult>>(`/api/web/v1/domains/${domain.id}/records/bulk`, {
-              recordsText: String(values.recordsText),
+              recordsText: bulkRecordTextForSave(domain.provider.type, String(values.type), String(values.recordsText)),
               type: values.type === 'auto' ? undefined : values.type,
               lineId: null,
               ttl: Number(values.ttl ?? 600),
@@ -355,7 +366,7 @@ function CrossDomainBatch({ mode, domains, initialIds }: { mode: 'add' | 'edit';
           : await apiPatch<DataResponse<OperationResult>>(`/api/web/v1/domains/${domain.id}/records/by-name`, {
               name: values.name,
               type: values.type,
-              value: values.value,
+              value: recordValueForSave(domain.provider.type, String(values.type), String(values.value)),
               ttl: Number(values.ttl ?? 0),
               mxPriority: Number(values.mxPriority ?? 0),
             })
