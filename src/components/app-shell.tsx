@@ -352,7 +352,7 @@ function AppShellContent() {
                   {session.user.email ?? session.user.name}
                 </span>
               </span>
-              <EllipsisVerticalIcon className="group-data-[collapsible=icon]:hidden" />
+              <EllipsisVerticalIcon className="size-3.5 shrink-0 text-muted-foreground group-data-[collapsible=icon]:hidden" />
             </DropdownMenuTrigger>
             <DropdownMenuContent side="right" align="end" className="min-w-56">
               <DropdownMenuGroup>
