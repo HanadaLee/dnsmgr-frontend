@@ -53,6 +53,7 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onKeyDown,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean
@@ -67,6 +68,12 @@ function DialogContent({
           className
         )}
         {...props}
+        onKeyDown={(event) => {
+          onKeyDown?.(event)
+          // Dialogs can be rendered from menu items that stay mounted while open.
+          // Keep the parent menu's typeahead from consuming text-field input.
+          event.stopPropagation()
+        }}
       >
         {children}
         {showCloseButton && (
