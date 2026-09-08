@@ -7,6 +7,7 @@ export type SessionCapabilities = {
   schedules: boolean
   certificates: boolean
   optimizeIp: boolean
+  axisNow: boolean
   systemSettings: boolean
   users: boolean
   logs: boolean
@@ -359,6 +360,100 @@ export type CloudflareTunnel = { id: string; name: string; status: string; conne
 export type CloudflareTunnelPublicHostname = { hostname: string; path?: string; service: string; zoneName?: string; zoneId?: string }
 export type CloudflareTunnelCidrRoute = { id: string; network: string; comment?: string; virtualNetworkId?: string; tunnelId?: string; createdAt?: string }
 export type CloudflareTunnelHostnameRoute = { id: string; hostname: string; comment?: string; tunnelId?: string; createdAt?: string }
+
+export type AxisNowAccount = { id: number; name: string }
+export type AxisNowSimpleOption = { uuid: string; name: string; description?: string }
+export type AxisNowDnsZoneOption = { uuid: string; zone: string; name?: string }
+export type AxisNowDnsProviderOption = {
+  uuid: string
+  name: string
+  type: string
+  source: 'platform' | 'self-hosted'
+  zones: AxisNowDnsZoneOption[]
+}
+export type AxisNowDomainOptions = {
+  providers: AxisNowDnsProviderOption[]
+  systemProviders: AxisNowDnsProviderOption[]
+}
+export type AxisNowEipOptions = {
+  edges: AxisNowSimpleOption[]
+  clusters: AxisNowSimpleOption[]
+  tags: AxisNowSimpleOption[]
+}
+export type AxisNowGeoIspOption = { value: string; name: string; depth: number; disabled: boolean }
+export type AxisNowRuleOptions = {
+  eips: AxisNowSimpleOption[]
+  tags: AxisNowSimpleOption[]
+  probeTemplates: AxisNowSimpleOption[]
+  geoIspOptions: AxisNowGeoIspOption[]
+}
+export type AxisNowDomain = {
+  uuid: string
+  accountId: number
+  accountName: string
+  domain: string
+  providerSource: 'platform' | 'self-hosted'
+  recordType: 'A' | 'CNAME'
+  dnsProviderUuid: string
+  dnsZoneUuid?: string
+  providerType?: string
+  name?: string
+  description?: string
+  eipCount: number
+  ruleCount: number
+  shareDefault: boolean
+  exposeEips: boolean
+  status?: string
+  createdAt?: string
+  updatedAt?: string
+}
+export type AxisNowRule = {
+  uuid: string
+  accountId: number
+  accountName: string
+  domainUuid: string
+  type: string
+  geoIsp: string
+  geoIspName: string
+  name?: string
+  description?: string
+  status: 'active' | 'paused'
+  strategy?: string
+  poolSummary?: string
+  action: Record<string, unknown>
+  createdAt?: string
+  updatedAt?: string
+}
+export type AxisNowEip = {
+  uuid: string
+  accountId: number
+  accountName: string
+  address: string
+  canManage: boolean
+  dataOrigin: 'own' | 'subscribed'
+  ownerType: 'edge' | 'cluster'
+  edgeUuid?: string
+  clusterUuid?: string
+  tagUuids: string[]
+  tagNames: string[]
+  referencedCount: number
+  providerName: string
+  geo: { countryCode?: string; provinceCode?: string; cityName?: string; ispName?: string }
+  subscriptionStatus?: string
+  createdAt?: string
+  updatedAt?: string
+}
+export type AxisNowTag = {
+  uuid: string
+  accountId: number
+  accountName: string
+  name: string
+  description?: string
+  boundCount: number
+  referencedCount: number
+  createdAt?: string
+  updatedAt?: string
+}
 
 export type UserSummary = { id: number; username: string; role: 'administrator' | 'user' | 'unknown'; apiEnabled: boolean; totpEnabled: boolean; enabled: boolean; registeredAt?: string; lastLoginAt?: string }
 export type UserDetail = UserSummary & { apiKey?: string; permissions: string[] }

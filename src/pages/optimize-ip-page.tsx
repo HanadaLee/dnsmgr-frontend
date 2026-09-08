@@ -67,7 +67,7 @@ type OptimizeForm = {
 };
 type WorkerStatus = { running: boolean };
 const providerLabels: Record<string, string> = {
-  cloudflare: "Cloudflare",
+  cloudflare: "CloudFlare",
   cloudfront: "CloudFront",
   gcore: "Gcore",
   edgeone: "EdgeOne",
@@ -132,7 +132,7 @@ function fields(form?: OptimizeForm): FormFieldSpec[] {
       description:
         form?.dataSource === "wetest"
           ? undefined
-          : "当前数据源仅支持 Cloudflare。",
+          : "当前数据源仅支持 CloudFlare。",
       required: true,
     },
     {

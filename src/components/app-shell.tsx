@@ -4,6 +4,7 @@ import {
   BookOpenIcon,
   CalendarClockIcon,
   CloudIcon,
+  ContainerIcon,
   EllipsisVerticalIcon,
   FileClockIcon,
   GaugeIcon,
@@ -12,11 +13,13 @@ import {
   LogOutIcon,
   MoonIcon,
   NetworkIcon,
+  RouteIcon,
   RadioTowerIcon,
   ScanSearchIcon,
   ScrollTextIcon,
   SettingsIcon,
   ShieldCheckIcon,
+  SnowflakeIcon,
   SunIcon,
   TagsIcon,
   UserRoundIcon,
@@ -51,6 +54,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
@@ -65,6 +71,7 @@ type NavItem = {
   icon: LucideIcon;
   enabled: boolean;
   exact?: boolean;
+  children?: NavItem[];
 };
 type NavGroup = { label: string; items: NavItem[] };
 
@@ -77,12 +84,16 @@ const titleMap: Array<[RegExp, string]> = [
   [/^\/monitoring/, "解析监控"],
   [/^\/schedules/, "定时任务"],
   [/^\/optimize-ip/, "优选 IP"],
-  [/^\/certificate-accounts/, "证书账户"],
+  [/^\/certificate-accounts/, "账户管理"],
   [/^\/certificate-orders/, "证书订单"],
   [/^\/certificate-deployments/, "自动部署"],
-  [/^\/certificate-cnames/, "CNAME 代理"],
+  [/^\/certificate-cnames/, "DCV托管校验"],
   [/^\/certificate-settings/, "证书设置"],
-  [/^\/cloudflare/, "Cloudflare"],
+  [/^\/cloudflare/, "CloudFlare"],
+  [/^\/axisnow\/domains\/\d+\//, "AxisNow 路由规则"],
+  [/^\/axisnow\/domains/, "AxisNow DNS 路由"],
+  [/^\/axisnow\/eips/, "AxisNow EIP 管理"],
+  [/^\/axisnow\/tags/, "AxisNow 标签管理"],
   [/^\/users/, "用户管理"],
   [/^\/logs/, "操作日志"],
   [/^\/system/, "系统设置"],
@@ -116,7 +127,7 @@ function AppShellContent() {
   }, [location.key, location.pathname, setOpenMobile]);
 
   const capabilities = session.capabilities;
-  const groups: NavGroup[] = [
+  const rawGroups: NavGroup[] = [
     {
       label: "概览",
       items: [
@@ -137,12 +148,6 @@ function AppShellContent() {
           label: "域名管理",
           icon: Globe2Icon,
           enabled: capabilities.domains,
-        },
-        {
-          to: "/domain-accounts",
-          label: "域名账户",
-          icon: KeyRoundIcon,
-          enabled: capabilities.domainAccounts,
         },
         {
           to: "/domain-categories",
@@ -185,12 +190,6 @@ function AppShellContent() {
       label: "证书",
       items: [
         {
-          to: "/certificate-accounts",
-          label: "证书账户",
-          icon: KeyRoundIcon,
-          enabled: capabilities.certificates,
-        },
-        {
           to: "/certificate-orders",
           label: "证书订单",
           icon: ShieldCheckIcon,
@@ -204,32 +203,76 @@ function AppShellContent() {
         },
         {
           to: "/certificate-cnames",
-          label: "CNAME 代理",
+          label: "DCV托管校验",
           icon: NetworkIcon,
-          enabled: capabilities.certificates,
-        },
-        {
-          to: "/certificate-settings",
-          label: "证书设置",
-          icon: SettingsIcon,
           enabled: capabilities.certificates,
         },
       ],
     },
     {
-      label: "Cloudflare",
+      label: "第三方高级功能",
       items: [
         {
           to: "/cloudflare",
-          label: "Cloudflare",
+          label: "CloudFlare",
           icon: CloudIcon,
           enabled: capabilities.domains && capabilities.domainAccounts,
+        },
+        {
+          label: "AxisNow调度管理",
+          icon: SnowflakeIcon,
+          enabled: capabilities.axisNow,
+          children: [
+            {
+              to: "/axisnow/domains",
+              label: "DNS 路由",
+              icon: RouteIcon,
+              enabled: capabilities.axisNow,
+            },
+            {
+              to: "/axisnow/eips",
+              label: "EIP 管理",
+              icon: ContainerIcon,
+              enabled: capabilities.axisNow,
+            },
+            {
+              to: "/axisnow/tags",
+              label: "标签管理",
+              icon: TagsIcon,
+              enabled: capabilities.axisNow,
+            },
+          ],
         },
       ],
     },
     {
       label: "管理",
       items: [
+        {
+          label: "账户管理",
+          icon: KeyRoundIcon,
+          enabled: capabilities.domainAccounts || capabilities.certificates,
+          children: [
+            {
+              to: "/domain-accounts",
+              label: "域名账户",
+              icon: Globe2Icon,
+              enabled: capabilities.domainAccounts,
+            },
+            {
+              to: "/certificate-accounts?kind=issuance",
+              label: "证书签发账户",
+              icon: ShieldCheckIcon,
+              enabled: capabilities.certificates,
+            },
+            {
+              to: "/certificate-accounts?kind=deployment",
+              label: "证书部署账户",
+              icon: FileClockIcon,
+              enabled: capabilities.certificates,
+            },
+          ],
+        },
         {
           to: "/users",
           label: "用户管理",
@@ -256,10 +299,14 @@ function AppShellContent() {
         },
       ],
     },
-  ]
+  ];
+  const groups: NavGroup[] = rawGroups
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => item.enabled),
+      items: group.items.filter((item) => item.enabled).map((item) => ({
+        ...item,
+        children: item.children?.filter((child) => child.enabled),
+      })),
     }))
     .filter((group) => group.items.length);
 
@@ -292,14 +339,16 @@ function AppShellContent() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {group.items.map((item) => (
-                    <SidebarMenuItem key={item.to ?? item.href}>
+                    <SidebarMenuItem key={item.to ?? item.href ?? item.label}>
                       <SidebarMenuButton
                         tooltip={item.label}
                         isActive={
-                          item.to
+                          item.children?.some((child) => child.to && location.pathname === child.to.split('?')[0])
+                            ? true
+                            : item.to
                             ? item.exact
                               ? location.pathname === item.to
-                              : location.pathname.startsWith(item.to)
+                              : location.pathname.startsWith(item.to.split('?')[0])
                             : false
                         }
                         render={
@@ -310,18 +359,35 @@ function AppShellContent() {
                               rel="noreferrer"
                               onClick={closeMobileSidebar}
                             />
-                          ) : (
+                          ) : item.to ? (
                             <NavLink
-                              to={item.to ?? "/"}
+                              to={item.to}
                               end={item.exact}
                               onClick={closeMobileSidebar}
                             />
+                          ) : (
+                            <button type="button" />
                           )
                         }
                       >
                         <item.icon />
                         <span>{item.label}</span>
                       </SidebarMenuButton>
+                      {item.children?.length ? (
+                        <SidebarMenuSub>
+                          {item.children.map((child) => (
+                            <SidebarMenuSubItem key={child.to ?? child.label}>
+                              <SidebarMenuSubButton
+                                isActive={Boolean(child.to && location.pathname === child.to.split('?')[0] && (!child.to.includes('?') || location.search === `?${child.to.split('?')[1]}`))}
+                                render={<NavLink to={child.to ?? "/"} onClick={closeMobileSidebar} />}
+                              >
+                                <child.icon />
+                                <span>{child.label}</span>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      ) : null}
                     </SidebarMenuItem>
                   ))}
                 </SidebarMenu>

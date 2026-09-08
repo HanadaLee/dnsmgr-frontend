@@ -386,7 +386,7 @@ function CrossDomainBatch({ mode, domains, initialIds }: { mode: 'add' | 'edit';
     { name: 'type', label: '记录类型', kind: 'select' as const, options: [{ value: 'auto', label: '自动识别 A / AAAA / CNAME' }, ...['A', 'AAAA', 'CNAME', 'NS', 'MX', 'SRV', 'TXT', 'CAA'].map((value) => ({ value, label: value }))], required: true },
     { name: 'ttl', label: 'TTL', kind: 'number' as const, min: 1, required: true },
     { name: 'mxPriority', label: 'MX 优先级', kind: 'number' as const, min: 0, max: 65535, visible: (values: Record<string, unknown>) => values.type === 'MX' },
-    { name: 'proxied', label: 'Cloudflare 域名启用代理', kind: 'switch' as const },
+    { name: 'proxied', label: 'CloudFlare 域名启用代理', kind: 'switch' as const },
   ] : [
     { name: 'name', label: '已有主机记录', placeholder: '@ 或 www', required: true },
     { name: 'type', label: '新记录类型', kind: 'select' as const, options: ['A', 'AAAA', 'CNAME', 'NS', 'MX', 'SRV', 'TXT', 'CAA'].map((value) => ({ value, label: value })), required: true },

@@ -18,6 +18,7 @@ export function DataTable<T>({
   rowKey,
   selected,
   onSelectedChange,
+  isRowSelectable,
   emptyTitle = '暂无数据',
   emptyDescription = '调整筛选条件或新增一条数据。',
 }: {
@@ -26,11 +27,12 @@ export function DataTable<T>({
   rowKey: (row: T) => string
   selected?: Set<string>
   onSelectedChange?: (selected: Set<string>) => void
+  isRowSelectable?: (row: T) => boolean
   emptyTitle?: string
   emptyDescription?: string
 }) {
   const selectable = Boolean(selected && onSelectedChange)
-  const keys = rows.map(rowKey)
+  const keys = rows.filter((row) => isRowSelectable?.(row) ?? true).map(rowKey)
   const allSelected = keys.length > 0 && keys.every((key) => selected?.has(key))
 
   if (!rows.length) {
@@ -69,6 +71,7 @@ export function DataTable<T>({
         <TableBody>
           {rows.map((row) => {
             const key = rowKey(row)
+            const rowSelectable = isRowSelectable?.(row) ?? true
             return (
               <TableRow key={key} data-state={selected?.has(key) ? 'selected' : undefined}>
                 {selectable ? (
@@ -76,6 +79,7 @@ export function DataTable<T>({
                     <Checkbox
                       aria-label="选择项目"
                       checked={selected?.has(key) ?? false}
+                      disabled={!rowSelectable}
                       onCheckedChange={(checked) => {
                         const next = new Set(selected)
                         if (checked) next.add(key)

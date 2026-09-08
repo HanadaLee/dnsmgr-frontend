@@ -11,11 +11,14 @@ import { LoadingTable } from '@/components/loading-table'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/toast'
 const DashboardPage = lazy(() => import('@/pages/dashboard-page').then((module) => ({ default: module.DashboardPage })))
+const AxisNowDomainsPage = lazy(() => import('@/pages/axisnow-domains-page').then((module) => ({ default: module.AxisNowDomainsPage })))
+const AxisNowEipsPage = lazy(() => import('@/pages/axisnow-eips-page').then((module) => ({ default: module.AxisNowEipsPage })))
+const AxisNowRulesPage = lazy(() => import('@/pages/axisnow-rules-page').then((module) => ({ default: module.AxisNowRulesPage })))
+const AxisNowTagsPage = lazy(() => import('@/pages/axisnow-tags-page').then((module) => ({ default: module.AxisNowTagsPage })))
 const CertificateAccountsPage = lazy(() => import('@/pages/certificate-accounts-page').then((module) => ({ default: module.CertificateAccountsPage })))
 const CertificateCnamesPage = lazy(() => import('@/pages/certificate-cnames-page').then((module) => ({ default: module.CertificateCnamesPage })))
 const CertificateDeploymentsPage = lazy(() => import('@/pages/certificate-deployments-page').then((module) => ({ default: module.CertificateDeploymentsPage })))
 const CertificateOrdersPage = lazy(() => import('@/pages/certificate-orders-page').then((module) => ({ default: module.CertificateOrdersPage })))
-const CertificateSettingsPage = lazy(() => import('@/pages/certificate-settings-page').then((module) => ({ default: module.CertificateSettingsPage })))
 const CloudflarePage = lazy(() => import('@/pages/cloudflare-page').then((module) => ({ default: module.CloudflarePage })))
 const DomainAccountsPage = lazy(() => import('@/pages/domain-accounts-page').then((module) => ({ default: module.DomainAccountsPage })))
 const DomainCategoriesPage = lazy(() => import('@/pages/domain-categories-page').then((module) => ({ default: module.DomainCategoriesPage })))
@@ -69,8 +72,12 @@ export default function App() {
                   <Route path="certificate-orders" element={<CapabilityRoute capability="certificates"><CertificateOrdersPage /></CapabilityRoute>} />
                   <Route path="certificate-deployments" element={<CapabilityRoute capability="certificates"><CertificateDeploymentsPage /></CapabilityRoute>} />
                   <Route path="certificate-cnames" element={<CapabilityRoute capability="certificates"><CertificateCnamesPage /></CapabilityRoute>} />
-                  <Route path="certificate-settings" element={<CapabilityRoute capability="certificates"><CertificateSettingsPage /></CapabilityRoute>} />
+                  <Route path="certificate-settings" element={<CapabilityRoute capability="certificates"><Navigate to="/system?tab=certificates" replace /></CapabilityRoute>} />
                   <Route path="cloudflare" element={<CapabilityRoute capability="domainAccounts"><CloudflarePage /></CapabilityRoute>} />
+                  <Route path="axisnow/domains" element={<CapabilityRoute capability="axisNow"><AxisNowDomainsPage /></CapabilityRoute>} />
+                  <Route path="axisnow/domains/:accountId/:domainUuid" element={<CapabilityRoute capability="axisNow"><AxisNowRulesPage /></CapabilityRoute>} />
+                  <Route path="axisnow/eips" element={<CapabilityRoute capability="axisNow"><AxisNowEipsPage /></CapabilityRoute>} />
+                  <Route path="axisnow/tags" element={<CapabilityRoute capability="axisNow"><AxisNowTagsPage /></CapabilityRoute>} />
                   <Route path="users" element={<CapabilityRoute capability="users"><UsersPage /></CapabilityRoute>} />
                   <Route path="logs" element={<CapabilityRoute capability="logs"><LogsPage /></CapabilityRoute>} />
                   <Route path="system" element={<CapabilityRoute capability="systemSettings"><SystemPage /></CapabilityRoute>} />

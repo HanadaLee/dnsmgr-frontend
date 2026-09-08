@@ -171,7 +171,7 @@ function taskFields(form?: MonitoringForm): FormFieldSpec[] {
     },
     {
       name: "enableCloudflareProxy",
-      label: "切换时启用 Cloudflare 代理",
+      label: "切换时启用 CloudFlare 代理",
       kind: "switch",
       visible: (values) =>
         values.action === "failover" &&

@@ -150,7 +150,7 @@ function scheduleFields(
     },
     {
       name: "lineMode",
-      label: "Cloudflare 代理模式",
+      label: "CloudFlare 代理模式",
       kind: "select",
       options: [
         { value: "unchanged", label: "保持不变" },

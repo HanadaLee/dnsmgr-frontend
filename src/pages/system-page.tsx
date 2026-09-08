@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CopyIcon, FlaskConicalIcon, SaveIcon, SendIcon } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 
 import { apiGet, apiPost, apiPut } from '@/api/client'
 import type { CronSettings, DataResponse, LoginSettings, NotificationSettings, OperationResult, ProxySettings } from '@/api/types'
+import { useSession } from '@/auth/session-context'
 import { LoadingTable } from '@/components/loading-table'
 import { PageHeader } from '@/components/page-header'
 import { QueryError } from '@/components/query-error'
@@ -19,9 +21,15 @@ import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/toast'
 import { useApiMutation } from '@/hooks/use-api-mutation'
 import { displayValue } from '@/lib/format'
+import { CertificateSettingsPanel } from '@/pages/certificate-settings-page'
 
 export function SystemPage() {
-  return <div className="flex flex-col gap-6"><PageHeader eyebrow="Administration" title="系统设置" description="配置登录验证、通知通道、网络代理与后台任务执行。" /><Tabs defaultValue="notifications"><TabsList variant="line"><TabsTrigger value="notifications">通知</TabsTrigger><TabsTrigger value="proxy">网络代理</TabsTrigger><TabsTrigger value="cron">后台任务</TabsTrigger><TabsTrigger value="login">登录设置</TabsTrigger></TabsList><TabsContent value="notifications"><NotificationSettingsPanel /></TabsContent><TabsContent value="proxy"><ProxySettingsPanel /></TabsContent><TabsContent value="cron"><CronSettingsPanel /></TabsContent><TabsContent value="login"><LoginSettingsPanel /></TabsContent></Tabs></div>
+  const session = useSession()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedTab = searchParams.get('tab')
+  const allowedTabs = session.capabilities.certificates ? ['notifications', 'proxy', 'cron', 'login', 'certificates'] : ['notifications', 'proxy', 'cron', 'login']
+  const tab = allowedTabs.includes(requestedTab ?? '') ? requestedTab! : 'notifications'
+  return <div className="flex flex-col gap-6"><PageHeader eyebrow="管理" title="系统设置" description="配置通知通道、网络代理、后台任务、登录验证与证书自动化。" /><Tabs value={tab} onValueChange={(value) => setSearchParams(value === 'notifications' ? {} : { tab: value }, { replace: true })}><TabsList variant="line"><TabsTrigger value="notifications">通知</TabsTrigger><TabsTrigger value="proxy">网络代理</TabsTrigger><TabsTrigger value="cron">后台任务</TabsTrigger><TabsTrigger value="login">登录设置</TabsTrigger>{session.capabilities.certificates ? <TabsTrigger value="certificates">证书设置</TabsTrigger> : null}</TabsList><TabsContent value="notifications"><NotificationSettingsPanel /></TabsContent><TabsContent value="proxy"><ProxySettingsPanel /></TabsContent><TabsContent value="cron"><CronSettingsPanel /></TabsContent><TabsContent value="login"><LoginSettingsPanel /></TabsContent>{session.capabilities.certificates ? <TabsContent value="certificates"><CertificateSettingsPanel /></TabsContent> : null}</Tabs></div>
 }
 
 function LoginSettingsPanel() {

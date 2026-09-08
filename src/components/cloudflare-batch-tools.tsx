@@ -27,9 +27,9 @@ type BatchRecord = {
 }
 
 const modeText: Record<BatchMode, { title: string; description: string; remark: string }> = {
-  ownership: { title: '批量写入主机名验证', description: '为所选主机名写入所有权 TXT 验证记录。', remark: 'Cloudflare 主机名验证' },
-  certificate: { title: '批量写入证书验证', description: '为所选主机名写入证书 TXT 或 CNAME 验证记录。', remark: 'Cloudflare 证书验证' },
-  dcv: { title: '批量添加 DCV 委派', description: '为所选主机名创建 ACME DCV 委派 CNAME 记录。', remark: 'Cloudflare DCV 委派' },
+  ownership: { title: '批量写入主机名验证', description: '为所选主机名写入所有权 TXT 验证记录。', remark: 'CloudFlare 主机名验证' },
+  certificate: { title: '批量写入证书验证', description: '为所选主机名写入证书 TXT 或 CNAME 验证记录。', remark: 'CloudFlare 证书验证' },
+  dcv: { title: '批量添加 DCV 委派', description: '为所选主机名创建 ACME DCV 委派 CNAME 记录。', remark: 'CloudFlare DCV 委派' },
 }
 
 function sourceRecords(items: CloudflareCustomHostname[], mode: BatchMode, uuid?: string) {

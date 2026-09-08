@@ -11,8 +11,9 @@
 - 解析记录 CRUD、检测、分组、日志、权重、别名和 QingCloud 层级记录
 - Excel 导入/导出、跨域批量添加/修改、智能解析和全域精确值搜索
 - DNS 监控、定时切换和优选 IP 的设置、任务、状态、日志与批量操作
-- 证书账户、订单、制品、自动部署、批量更换证书、CNAME 代理和续签设置
-- Cloudflare 自定义主机名、验证记录、Fallback、DCV、优选解析和 Tunnel 全部路由能力
+- 证书账户、订单、制品、自动部署、批量更换证书、DCV 托管校验和续签设置
+- CloudFlare 自定义主机名、验证记录、Fallback、DCV、优选解析和 Tunnel 全部路由能力
+- AxisNow DNS 路由、线路规则、共享 EIP 和标签管理
 - 用户、域名权限、API Key、操作日志、个人安全及全部系统设置/连通性测试
 - 根路径或子路径部署，以及面向生产的单 worker 最小 nginx 静态容器
 
@@ -56,7 +57,7 @@ Vite 会同时调整资源地址，React Router 会从同一个 base path 读取
 仓库提供面向最终根路径部署的多阶段镜像。Node.js 构建阶段执行 lint、单元测试和 Vite build；运行层使用官方 `nginx:stable-alpine-slim`，不包含 Node.js、npm、源码、开发依赖或构建缓存，只保留 nginx 最小运行环境、配置和 `dist` 静态文件：
 
 ```powershell
-docker build --build-arg APP_VERSION=0.2.9 -t dnsmgr-frontend:local .
+docker build --build-arg APP_VERSION=0.2.10 -t dnsmgr-frontend:local .
 $env:DNSMGR_FRONTEND_IMAGE = 'dnsmgr-frontend:local'
 $env:DNSMGR_FRONTEND_PORT = '19103'
 docker compose up -d
