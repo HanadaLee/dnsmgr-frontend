@@ -213,7 +213,7 @@ export function DomainsPage() {
       {canManageDomains && expirySettings.isError ? <QueryError error={expirySettings.error} retry={() => void expirySettings.refetch()} /> : null}
       {canManageDomains && providers.isError ? <QueryError error={providers.error} retry={() => void providers.refetch()} /> : null}
       <Card>
-        <CardContent className="flex flex-col gap-4 pt-6">
+        <CardContent className="flex flex-col gap-4">
           <form className="grid gap-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-[minmax(14rem,2fr)_repeat(6,minmax(8rem,1fr))_auto]" onSubmit={(event) => { event.preventDefault(); setPage(1); setSelected(new Set()); setQueryText(search.trim()) }}>
             <div className="relative"><SearchIcon className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索域名或备注" /></div>
             {canManageDomains ? <Select items={[{ value: 'all', label: '全部账户' }, ...accountOptions]} value={accountFilter} onValueChange={(value) => { setAccountFilter(value ?? 'all'); setPage(1); setSelected(new Set()) }}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="all">全部账户</SelectItem>{accountOptions.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectGroup></SelectContent></Select> : null}

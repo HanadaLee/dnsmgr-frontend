@@ -403,7 +403,7 @@ export function AxisNowRulesPage({
   return (
     <div className="flex flex-col gap-6">
       <Card>
-        <CardContent className="flex flex-col gap-4 pt-6">
+        <CardContent className="flex flex-col gap-4">
           <form
             className="grid gap-2 lg:grid-cols-[auto_minmax(16rem,1fr)_auto_auto_auto]"
             onSubmit={(event) => {

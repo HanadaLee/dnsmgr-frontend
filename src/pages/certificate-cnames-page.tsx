@@ -349,7 +349,7 @@ export function CertificateCnamesPage() {
         }
       />
       <Card>
-        <CardContent className="flex flex-col gap-4 pt-6">
+        <CardContent className="flex flex-col gap-4">
           <form
             className="grid gap-2 md:grid-cols-[minmax(14rem,1fr)_12rem_8rem_auto]"
             onSubmit={(event) => {

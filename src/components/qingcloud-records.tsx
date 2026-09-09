@@ -104,7 +104,7 @@ export function QingCloudRecords({ domainId, options }: { domainId: number; opti
 
   return (
     <Card>
-      <CardContent className="flex flex-col gap-4 pt-6">
+      <CardContent className="flex flex-col gap-4">
         <form className="flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); setPage(1); setQueryText(search.trim()) }}>
           <div className="relative min-w-0 flex-1"><SearchIcon className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索主机记录" /></div>
           <Button type="submit" variant="outline">搜索</Button>

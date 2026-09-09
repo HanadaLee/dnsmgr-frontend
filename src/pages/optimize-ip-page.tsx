@@ -418,7 +418,7 @@ export function OptimizeIpPage() {
         </TabsList>
         <TabsContent value="tasks">
           <Card>
-            <CardContent className="flex flex-col gap-4 pt-6">
+            <CardContent className="flex flex-col gap-4">
               <form
                 className="grid gap-2 md:grid-cols-2 xl:grid-cols-[9rem_minmax(14rem,1fr)_9rem_11rem_8rem_auto]"
                 onSubmit={(event) => {

@@ -493,7 +493,7 @@ function CustomHostnames({
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <CardContent className="flex flex-col gap-4 pt-6">
+        <CardContent className="flex flex-col gap-4">
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(14rem,1fr)_minmax(12rem,1fr)_auto_auto] lg:items-end">
             <Field>
               <FieldLabel>CloudFlare 域名</FieldLabel>
@@ -1164,7 +1164,7 @@ function Tunnels({
   ];
   return (
     <Card>
-      <CardContent className="flex flex-col gap-4 pt-6">
+      <CardContent className="flex flex-col gap-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
           <Field className="flex-1">
             <FieldLabel>CloudFlare 账户</FieldLabel>

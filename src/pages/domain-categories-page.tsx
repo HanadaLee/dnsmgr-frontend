@@ -223,7 +223,7 @@ export function DomainCategoriesPage() {
         }
       />
       <Card>
-        <CardContent className="flex flex-col gap-4 pt-6">
+        <CardContent className="flex flex-col gap-4">
           <div className="grid gap-2 sm:grid-cols-2 sm:justify-end lg:grid-cols-[12rem_8rem] lg:self-end">
             <Select
               items={[

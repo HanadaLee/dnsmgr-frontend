@@ -68,7 +68,7 @@ export function DomainAccountsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex justify-end"><AccountDialog trigger={<Button><PlusIcon data-icon="inline-start" />添加账户</Button>} providers={providers.data ?? []} /></div>
       <Card>
-        <CardContent className="flex flex-col gap-4 pt-6">
+        <CardContent className="flex flex-col gap-4">
           <form className="grid gap-2 md:grid-cols-[minmax(14rem,1fr)_12rem_8rem_auto]" onSubmit={(event) => { event.preventDefault(); setPage(1); setQueryText(search.trim()) }}>
             <div className="relative flex-1"><SearchIcon className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索账户名称" /></div>
             <Select items={[{ value: 'id', label: '按添加顺序' }, { value: 'provider', label: '按服务商' }, { value: 'name', label: '按账户名称' }, { value: 'remark', label: '按备注' }, { value: 'addedAt', label: '按添加时间' }]} value={sort} onValueChange={(value) => { setSort(value ?? 'id'); setPage(1) }}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="id">按添加顺序</SelectItem><SelectItem value="provider">按服务商</SelectItem><SelectItem value="name">按账户名称</SelectItem><SelectItem value="remark">按备注</SelectItem><SelectItem value="addedAt">按添加时间</SelectItem></SelectGroup></SelectContent></Select>
