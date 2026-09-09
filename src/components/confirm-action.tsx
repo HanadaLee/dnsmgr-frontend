@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import {
   AlertDialog,
@@ -30,8 +30,10 @@ export function ConfirmAction({
   pending?: boolean
   onConfirm: () => void
 }) {
+  const [open, setOpen] = useState(false)
+
   return (
-    <AlertDialog>
+    <AlertDialog open={open} onOpenChange={(nextOpen) => { if (!pending || !nextOpen) setOpen(nextOpen) }}>
       <AlertDialogTrigger render={trigger as React.ReactElement} />
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -40,7 +42,7 @@ export function ConfirmAction({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>取消</AlertDialogCancel>
-          <AlertDialogAction variant={destructive ? 'destructive' : 'default'} disabled={pending} onClick={onConfirm}>
+          <AlertDialogAction variant={destructive ? 'destructive' : 'default'} disabled={pending} onClick={() => { setOpen(false); onConfirm() }}>
             {pending ? <Spinner data-icon="inline-start" /> : null}
             {confirmLabel}
           </AlertDialogAction>
