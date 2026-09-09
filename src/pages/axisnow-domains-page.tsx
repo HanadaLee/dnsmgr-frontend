@@ -55,7 +55,7 @@ export function AxisNowDomainsPage() {
       label: '域名',
       render: (domain) => (
         <div className="min-w-64">
-          <Link className="font-medium text-primary hover:underline" to={`/axisnow?tab=domains&accountId=${domain.accountId}&domainUuid=${domain.uuid}`}>{domain.domain}</Link>
+          <Link className="font-medium text-primary hover:underline" to={`/axisnow?tab=domains&accountId=${domain.accountId}&domainUuid=${domain.uuid}&domain=${encodeURIComponent(domain.domain)}`}>{domain.domain}</Link>
           <p className="text-xs text-muted-foreground">{domain.eipCount} EIP · {domain.ruleCount} 路由规则</p>
         </div>
       ),
@@ -74,7 +74,7 @@ export function AxisNowDomainsPage() {
           <DropdownMenuTrigger render={<Button size="icon-sm" variant="ghost" aria-label={`管理 ${domain.domain}`} />}><MoreHorizontalIcon /></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuGroup>
-              <DropdownMenuItem render={<Link to={`/axisnow?tab=domains&accountId=${domain.accountId}&domainUuid=${domain.uuid}`} />}><RouteIcon />路由规则</DropdownMenuItem>
+              <DropdownMenuItem render={<Link to={`/axisnow?tab=domains&accountId=${domain.accountId}&domainUuid=${domain.uuid}&domain=${encodeURIComponent(domain.domain)}`} />}><RouteIcon />路由规则</DropdownMenuItem>
               <DomainDialog trigger={<DropdownMenuItem closeOnClick={false}><PencilIcon />编辑</DropdownMenuItem>} accounts={accounts.data ?? []} domain={domain} />
               <ConfirmAction trigger={<DropdownMenuItem variant="destructive" closeOnClick={false}><Trash2Icon />删除</DropdownMenuItem>} title="删除 DNS 路由域名？" description={`${domain.domain} 及其路由规则可能受到影响。`} destructive pending={remove.isPending} onConfirm={() => remove.mutate(domain)} />
             </DropdownMenuGroup>

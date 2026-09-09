@@ -91,7 +91,14 @@ const titleMap: Array<[RegExp, string]> = [
   [/^\/$/, "运行概览"],
 ];
 
-function currentTitle(pathname: string): string {
+function currentTitle(pathname: string, search: string): string {
+  if (pathname === "/axisnow") {
+    const params = new URLSearchParams(search);
+    if (params.get("domainUuid")) {
+      const domain = params.get("domain")?.trim();
+      if (domain) return domain;
+    }
+  }
   return (
     titleMap.find(([pattern]) => pattern.test(pathname))?.[1] ?? "DNS 控制台"
   );
@@ -392,7 +399,7 @@ function AppShellContent() {
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="my-auto h-4" />
           <span className="text-sm font-medium">
-            {currentTitle(location.pathname)}
+            {currentTitle(location.pathname, location.search)}
           </span>
           <Button
             className="ml-auto"

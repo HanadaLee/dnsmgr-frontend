@@ -18,12 +18,14 @@ import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from "@/api/client";
 import type {
   AxisNowDomain,
   AxisNowRule,
+  AxisNowRuleResolvedAddress,
   AxisNowRuleOptions,
   DataResponse,
   OperationResult,
   PageResponse,
 } from "@/api/types";
 import { ConfirmAction } from "@/components/confirm-action";
+import { CountryFlag } from "@/components/country-flag";
 import { DataTable, type DataColumn } from "@/components/data-table";
 import { ListPagination } from "@/components/list-pagination";
 import { LoadingTable } from "@/components/loading-table";
@@ -61,7 +63,6 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -71,6 +72,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiMutation } from "@/hooks/use-api-mutation";
 import { formatDateTime } from "@/lib/format";
@@ -84,7 +93,18 @@ const strategyNames: Record<string, string> = {
   quality_optimized: "优选",
 };
 
+function addressTone(item: AxisNowRuleResolvedAddress, selected: boolean) {
+  if (item.status?.toLowerCase() === "unavailable") {
+    return "text-destructive";
+  }
+  if (item.score === undefined && !item.status) return "text-foreground";
+  return selected
+    ? "text-emerald-600 dark:text-emerald-400"
+    : "text-amber-600 dark:text-amber-400";
+}
+
 function RulePoolCell({ rule }: { rule: AxisNowRule }) {
+  const resolved = new Set(rule.resolvedAddresses.map((item) => item.address.toLowerCase()));
   const heading = rule.poolAddressCount > 0
     ? `${rule.poolAddressCount} 个地址`
     : rule.poolSummary ?? "—";
@@ -93,12 +113,12 @@ function RulePoolCell({ rule }: { rule: AxisNowRule }) {
       <p className="font-medium">{heading}</p>
       {rule.poolGroups.map((group, index) => {
         return (
-          <div key={`${group.type}-${index}`} className="flex flex-wrap items-center gap-1">
+          <div key={`${group.type}-${index}`} className="flex items-start gap-1.5">
             <Badge variant="secondary">{group.typeName}</Badge>
             {group.type === "eip_tag" && group.items.length ? (
-              <span className="text-xs text-muted-foreground">
-                {group.items.join("、")}
-              </span>
+              <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+                {group.items.map((item) => <span key={item}>{item}</span>)}
+              </div>
             ) : null}
           </div>
         );
@@ -106,18 +126,6 @@ function RulePoolCell({ rule }: { rule: AxisNowRule }) {
     </div>
   );
   if (!rule.poolAddresses.length) return summary;
-  const addressList = (
-    <div className="flex flex-col gap-2 pr-2">
-      {rule.poolAddresses.map((item, index) => (
-        <div key={`${item.address}-${index}`} className="flex justify-between gap-6 font-mono text-sm">
-          <span>{item.address}</span>
-          {item.score !== undefined ? (
-            <span className="text-primary tabular-nums">{Number(item.score.toFixed(2))}</span>
-          ) : null}
-        </div>
-      ))}
-    </div>
-  );
   return (
     <HoverCard>
       <HoverCardTrigger
@@ -133,15 +141,50 @@ function RulePoolCell({ rule }: { rule: AxisNowRule }) {
       >
         {summary}
       </HoverCardTrigger>
-      <HoverCardContent side="right" align="start" className="w-[min(36rem,calc(100vw-2rem))]">
+      <HoverCardContent side="right" align="start" className="w-[min(52rem,calc(100vw-2rem))]">
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-4">
             <p className="font-medium">完整地址池</p>
             <Badge variant="outline">{rule.poolAddressCount} 个地址</Badge>
           </div>
-          {rule.poolAddresses.length > 8 ? (
-            <ScrollArea className="h-80">{addressList}</ScrollArea>
-          ) : addressList}
+          <div className="max-h-80 overflow-y-auto rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>IP 地址</TableHead>
+                  <TableHead>提供商 / 线路</TableHead>
+                  <TableHead>标签</TableHead>
+                  <TableHead className="text-right">评分</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rule.poolAddresses.map((item, index) => (
+                  <TableRow key={`${item.address}-${index}`}>
+                    <TableCell>
+                      <div className={`flex items-center gap-2 font-mono ${addressTone(item, resolved.has(item.address.toLowerCase()))}`}>
+                        <CountryFlag countryCode={item.countryCode} />
+                        <span>{item.address}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <p>{item.providerName || "—"}</p>
+                      {item.ispName ? <p className="text-xs text-muted-foreground">{item.ispName}</p> : null}
+                    </TableCell>
+                    <TableCell>
+                      {item.tagNames.length ? (
+                        <div className="flex flex-col items-start gap-1">
+                          {item.tagNames.map((tag) => <Badge key={tag} variant="secondary">{tag}</Badge>)}
+                        </div>
+                      ) : "—"}
+                    </TableCell>
+                    <TableCell className={`text-right font-mono tabular-nums ${addressTone(item, resolved.has(item.address.toLowerCase()))}`}>
+                      {item.score !== undefined ? Number(item.score.toFixed(2)) : "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
           {rule.poolTruncated ? (
             <p className="text-xs text-muted-foreground">接口仅返回部分地址，完整数量以上方统计为准。</p>
           ) : null}
@@ -180,10 +223,10 @@ function RuleResolvedCell({ rule }: { rule: AxisNowRule }) {
       {rule.resolvedAddresses.length ? (
         <div className="flex flex-col gap-0.5">
           {rule.resolvedAddresses.map((item, index) => (
-            <div key={`${item.address}-${index}`} className="flex justify-between gap-5 font-mono text-sm">
-              <span>{item.address}</span>
+            <div key={`${item.address}-${index}`} className={`flex items-center justify-between gap-5 font-mono text-sm ${addressTone(item, true)}`}>
+              <span className="flex items-center gap-2"><CountryFlag countryCode={item.countryCode} />{item.address}</span>
               {item.score !== undefined ? (
-                <span className="text-primary tabular-nums">
+                <span className="tabular-nums">
                   {Number(item.score.toFixed(2))}
                 </span>
               ) : null}
@@ -258,9 +301,8 @@ export function AxisNowRulesPage({
       key: "line",
       label: "线路",
       render: (rule) => (
-        <div className="min-w-48">
+        <div className="min-w-32">
           <p className="font-medium">{rule.geoIspName}</p>
-          <p className="text-xs text-muted-foreground">{rule.name ?? "—"}</p>
         </div>
       ),
     },
@@ -363,13 +405,22 @@ export function AxisNowRulesPage({
       <Card>
         <CardContent className="flex flex-col gap-4 pt-6">
           <form
-            className="grid gap-2 lg:grid-cols-[minmax(16rem,1fr)_auto_auto_auto_auto]"
+            className="grid gap-2 lg:grid-cols-[auto_minmax(16rem,1fr)_auto_auto_auto]"
             onSubmit={(event) => {
               event.preventDefault();
               setPage(1);
               setQueryText(search.trim());
             }}
           >
+            <Button
+              type="button"
+              variant="outline"
+              nativeButton={false}
+              render={<Link to="/axisnow?tab=domains" />}
+            >
+              <ArrowLeftIcon data-icon="inline-start" />
+              返回 DNS 路由
+            </Button>
             <div className="relative">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -408,15 +459,6 @@ export function AxisNowRulesPage({
               domain={domain.data}
               options={options.data}
             />
-            <Button
-              type="button"
-              variant="outline"
-              nativeButton={false}
-              render={<Link to="/axisnow?tab=domains" />}
-            >
-              <ArrowLeftIcon data-icon="inline-start" />
-              返回 DNS 路由
-            </Button>
           </form>
           {domain.isError ? (
             <QueryError

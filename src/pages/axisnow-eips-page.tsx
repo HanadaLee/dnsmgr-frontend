@@ -5,6 +5,7 @@ import { MoreHorizontalIcon, PencilIcon, PlusIcon, RefreshCwIcon, SearchIcon, Tr
 import { apiGet, apiPost, apiPut } from '@/api/client'
 import type { AxisNowAccount, AxisNowEip, AxisNowEipOptions, DataResponse, OperationResult, PageResponse } from '@/api/types'
 import { ConfirmAction } from '@/components/confirm-action'
+import { CountryFlag } from '@/components/country-flag'
 import { DataTable, type DataColumn } from '@/components/data-table'
 import { ListPagination } from '@/components/list-pagination'
 import { LoadingTable } from '@/components/loading-table'
@@ -51,8 +52,8 @@ export function AxisNowEipsPage() {
       key: 'address',
       label: 'EIP',
       render: (eip) => {
-        const location = [eip.geo.countryCode, eip.geo.provinceCode, eip.geo.cityName].filter(Boolean).join(' / ')
-        return <div className="min-w-48"><p className="font-medium">{eip.address}</p><p className="text-xs text-muted-foreground">{location || eip.geo.ispName || '—'}</p></div>
+        const location = [eip.geo.provinceCode, eip.geo.cityName].filter(Boolean).join(' / ')
+        return <div className="min-w-48"><p className="flex items-center gap-2 font-medium"><CountryFlag countryCode={eip.geo.countryCode} /><span>{eip.address}</span></p><p className="text-xs text-muted-foreground">{location || eip.geo.ispName || '—'}</p></div>
       },
     },
     { key: 'account', label: '平台账户', render: (eip) => eip.accountName },
