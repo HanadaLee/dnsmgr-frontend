@@ -29,3 +29,16 @@ describe('Huawei CNAME value compatibility', () => {
     expect(bulkRecordTextForSave('huawei', 'auto', 'www target.example.com\napi 192.0.2.1')).toBe('www target.example.com.\napi 192.0.2.1')
   })
 })
+
+describe('Tencent DNSPod domain value display compatibility', () => {
+  it.each(['CNAME', 'NS', 'MX'])('hides one trailing dot from %s values', (recordType) => {
+    expect(recordValueForDisplay('dnspod', recordType, 'target.example.com.')).toBe('target.example.com')
+    expect(recordValueForDisplay('DNSPOD', recordType.toLowerCase(), 'one.example.com.,two.example.com.')).toBe('one.example.com,two.example.com')
+  })
+
+  it('does not alter unrelated record values or values sent back to DNSPod', () => {
+    expect(recordValueForDisplay('dnspod', 'TXT', 'verification.')).toBe('verification.')
+    expect(recordValueForDisplay('dnspod', 'A', '192.0.2.1')).toBe('192.0.2.1')
+    expect(recordValueForSave('dnspod', 'CNAME', 'target.example.com')).toBe('target.example.com')
+  })
+})

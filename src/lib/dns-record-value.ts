@@ -1,11 +1,19 @@
 const HUAWEI_PROVIDER = 'huawei'
+const TENCENT_PROVIDER = 'dnspod'
+const TENCENT_ABSOLUTE_DOMAIN_RECORD_TYPES = new Set(['CNAME', 'NS', 'MX'])
 
 function isHuaweiCname(providerType: string | undefined, recordType: string | undefined): boolean {
   return providerType?.toLowerCase() === HUAWEI_PROVIDER && recordType?.toUpperCase() === 'CNAME'
 }
 
+function hidesProviderTrailingDot(providerType: string | undefined, recordType: string | undefined): boolean {
+  if (isHuaweiCname(providerType, recordType)) return true
+  return providerType?.toLowerCase() === TENCENT_PROVIDER
+    && TENCENT_ABSOLUTE_DOMAIN_RECORD_TYPES.has(recordType?.toUpperCase() ?? '')
+}
+
 export function recordValueForDisplay(providerType: string | undefined, recordType: string | undefined, value: string): string {
-  if (!isHuaweiCname(providerType, recordType)) return value
+  if (!hidesProviderTrailingDot(providerType, recordType)) return value
   return value.split(',').map((item) => {
     const normalized = item.trim()
     return normalized.endsWith('.') ? normalized.slice(0, -1) : normalized
