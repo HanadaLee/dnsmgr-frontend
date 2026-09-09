@@ -72,6 +72,87 @@ import { formatDateTime } from "@/lib/format";
 type PoolType = "all_valid_eips" | "eip_tag" | "eip" | "ip" | "domain";
 type Strategy = "random" | "priority_order" | "quality_optimized";
 
+const strategyNames: Record<string, string> = {
+  random: "随机",
+  priority_order: "顺序",
+  quality_optimized: "优选",
+};
+
+function RulePoolCell({ rule }: { rule: AxisNowRule }) {
+  const heading = rule.poolAddressCount > 0
+    ? `${rule.poolAddressCount} 个地址`
+    : rule.poolSummary ?? "—";
+  return (
+    <div className="flex min-w-56 max-w-80 flex-col gap-1.5">
+      <p className="font-medium">{heading}</p>
+      {rule.poolGroups.map((group, index) => {
+        const shown = group.items.slice(0, 8);
+        return (
+          <div key={`${group.type}-${index}`} className="flex flex-wrap items-center gap-1">
+            <Badge variant="secondary">{group.typeName}</Badge>
+            {shown.length ? (
+              <span className="text-xs text-muted-foreground">
+                {shown.join("、")}
+                {group.items.length > shown.length ? ` 等 ${group.items.length} 项` : ""}
+              </span>
+            ) : null}
+          </div>
+        );
+      })}
+      {rule.poolTruncated ? (
+        <p className="text-xs text-muted-foreground">地址池较大，仅展示接口返回的部分地址</p>
+      ) : null}
+    </div>
+  );
+}
+
+function RuleStrategyCell({ rule }: { rule: AxisNowRule }) {
+  const name = strategyNames[rule.strategy ?? ""] ?? rule.strategy ?? "—";
+  return (
+    <div className="flex min-w-32 flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {rule.strategyQuantity ? <span>选取 {rule.strategyQuantity} 个地址</span> : null}
+        <Badge variant="outline">{name}</Badge>
+      </div>
+      {rule.strategyInterval ? (
+        <p className="text-xs text-muted-foreground">每 {rule.strategyInterval} 分钟评估</p>
+      ) : null}
+    </div>
+  );
+}
+
+function ruleUpdatedAt(value?: string) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? formatDateTime(value)
+    : date.toLocaleString("zh-CN", { hour12: false });
+}
+
+function RuleResolvedCell({ rule }: { rule: AxisNowRule }) {
+  return (
+    <div className="flex min-w-56 flex-col gap-1.5">
+      {rule.resolvedAddresses.length ? (
+        <div className="flex flex-col gap-0.5">
+          {rule.resolvedAddresses.map((item, index) => (
+            <div key={`${item.address}-${index}`} className="flex justify-between gap-5 font-mono text-sm">
+              <span>{item.address}</span>
+              {item.score !== undefined ? (
+                <span className="text-primary tabular-nums">
+                  {Number(item.score.toFixed(2))}
+                </span>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">暂无解析结果</p>
+      )}
+      <p className="text-xs text-muted-foreground">最后更新时间：{ruleUpdatedAt(rule.updatedAt)}</p>
+    </div>
+  );
+}
+
 export function AxisNowRulesPage({
   accountId,
   domainUuid,
@@ -127,11 +208,6 @@ export function AxisNowRulesPage({
     successMessage: "路由规则已删除",
     invalidate: [["axisnow-rules", accountId, domainUuid], ["axisnow-domains"]],
   });
-  const strategyNames: Record<string, string> = {
-    random: "随机",
-    priority_order: "顺序",
-    quality_optimized: "优选",
-  };
   const columns: DataColumn<AxisNowRule>[] = [
     {
       key: "line",
@@ -148,12 +224,16 @@ export function AxisNowRulesPage({
       label: "记录类型",
       render: (rule) => <code>{rule.type}</code>,
     },
-    { key: "pool", label: "地址池", render: (rule) => rule.poolSummary ?? "—" },
+    { key: "pool", label: "地址池", render: (rule) => <RulePoolCell rule={rule} /> },
     {
       key: "strategy",
       label: "选取策略",
-      render: (rule) =>
-        strategyNames[rule.strategy ?? ""] ?? rule.strategy ?? "—",
+      render: (rule) => <RuleStrategyCell rule={rule} />,
+    },
+    {
+      key: "resolved",
+      label: "解析地址 / 最后更新时间",
+      render: (rule) => <RuleResolvedCell rule={rule} />,
     },
     {
       key: "status",
@@ -163,11 +243,6 @@ export function AxisNowRulesPage({
           {rule.status === "active" ? "启用" : "暂停"}
         </Badge>
       ),
-    },
-    {
-      key: "time",
-      label: "更新时间",
-      render: (rule) => formatDateTime(rule.updatedAt),
     },
     {
       key: "actions",

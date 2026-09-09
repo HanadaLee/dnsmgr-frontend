@@ -407,6 +407,18 @@ export type AxisNowDomain = {
   createdAt?: string
   updatedAt?: string
 }
+export type AxisNowRulePoolGroup = {
+  type: string
+  typeName: string
+  count: number
+  items: string[]
+}
+export type AxisNowRuleResolvedAddress = {
+  address: string
+  score?: number
+  status?: string
+  qualityFiltered: boolean
+}
 export type AxisNowRule = {
   uuid: string
   accountId: number
@@ -420,6 +432,12 @@ export type AxisNowRule = {
   status: 'active' | 'paused'
   strategy?: string
   poolSummary?: string
+  poolGroups: AxisNowRulePoolGroup[]
+  poolAddressCount: number
+  poolTruncated: boolean
+  strategyQuantity?: number
+  strategyInterval?: number
+  resolvedAddresses: AxisNowRuleResolvedAddress[]
   action: Record<string, unknown>
   createdAt?: string
   updatedAt?: string
