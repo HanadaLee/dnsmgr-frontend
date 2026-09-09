@@ -12,7 +12,7 @@ import {
   SearchIcon,
   Trash2Icon,
 } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from "@/api/client";
 import type {
@@ -27,7 +27,6 @@ import { ConfirmAction } from "@/components/confirm-action";
 import { DataTable, type DataColumn } from "@/components/data-table";
 import { ListPagination } from "@/components/list-pagination";
 import { LoadingTable } from "@/components/loading-table";
-import { PageHeader } from "@/components/page-header";
 import { QueryError } from "@/components/query-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -73,10 +72,10 @@ import { formatDateTime } from "@/lib/format";
 type PoolType = "all_valid_eips" | "eip_tag" | "eip" | "ip" | "domain";
 type Strategy = "random" | "priority_order" | "quality_optimized";
 
-export function AxisNowRulesPage() {
-  const params = useParams<{ accountId: string; domainUuid: string }>();
-  const accountId = Number(params.accountId);
-  const domainUuid = params.domainUuid ?? "";
+export function AxisNowRulesPage({
+  accountId,
+  domainUuid,
+}: { accountId: number; domainUuid: string }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [queryText, setQueryText] = useState("");
@@ -241,15 +240,6 @@ export function AxisNowRulesPage() {
     );
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        eyebrow="第三方高级功能"
-        title="路由规则"
-        description={
-          domain.data
-            ? `${domain.data.domain} · ${domain.data.accountName}`
-            : "管理 AxisNow DNS 路由规则。"
-        }
-      />
       <Card>
         <CardContent className="flex flex-col gap-4 pt-6">
           <form
@@ -302,7 +292,7 @@ export function AxisNowRulesPage() {
               type="button"
               variant="outline"
               nativeButton={false}
-              render={<Link to="/axisnow/domains" />}
+              render={<Link to="/axisnow?tab=domains" />}
             >
               <ArrowLeftIcon data-icon="inline-start" />
               返回 DNS 路由

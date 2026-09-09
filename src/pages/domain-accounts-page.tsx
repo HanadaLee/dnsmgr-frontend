@@ -10,7 +10,6 @@ import { DataTable, type DataColumn } from '@/components/data-table'
 import { defaultsForFields, DynamicFields } from '@/components/dynamic-fields'
 import { ListPagination } from '@/components/list-pagination'
 import { LoadingTable } from '@/components/loading-table'
-import { PageHeader } from '@/components/page-header'
 import { QueryError } from '@/components/query-error'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -67,7 +66,7 @@ export function DomainAccountsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="DNS" title="域名账户" description="统一管理各 DNS 服务商凭据，并按服务商能力动态配置账户。" action={<AccountDialog trigger={<Button><PlusIcon data-icon="inline-start" />添加账户</Button>} providers={providers.data ?? []} />} />
+      <div className="flex justify-end"><AccountDialog trigger={<Button><PlusIcon data-icon="inline-start" />添加账户</Button>} providers={providers.data ?? []} /></div>
       <Card>
         <CardContent className="flex flex-col gap-4 pt-6">
           <form className="grid gap-2 md:grid-cols-[minmax(14rem,1fr)_12rem_8rem_auto]" onSubmit={(event) => { event.preventDefault(); setPage(1); setQueryText(search.trim()) }}>

@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactElement } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { MoreHorizontalIcon, PencilIcon, PlusIcon, SearchIcon, Trash2Icon } from 'lucide-react'
-import { useSearchParams } from 'react-router-dom'
 
 import { apiDelete, apiGet, apiPost, apiPut } from '@/api/client'
 import type { CertificateAccountDetail, CertificateAccountKind, CertificateAccountSummary, CertificateAccountTypeDefinition, DataResponse, OperationResult, PageResponse } from '@/api/types'
@@ -10,7 +9,6 @@ import { DataTable, type DataColumn } from '@/components/data-table'
 import { defaultsForFields, DynamicFields } from '@/components/dynamic-fields'
 import { ListPagination } from '@/components/list-pagination'
 import { LoadingTable } from '@/components/loading-table'
-import { PageHeader } from '@/components/page-header'
 import { QueryError } from '@/components/query-error'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -21,14 +19,11 @@ import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { useApiMutation } from '@/hooks/use-api-mutation'
 import { formatDateTime } from '@/lib/format'
 
-export function CertificateAccountsPage() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const kind: CertificateAccountKind = searchParams.get('kind') === 'deployment' ? 'deployment' : 'issuance'
+export function CertificateAccountsPage({ kind }: { kind: CertificateAccountKind }) {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [queryText, setQueryText] = useState('')
@@ -43,7 +38,7 @@ export function CertificateAccountsPage() {
     { key: 'time', label: '添加时间', render: (account) => formatDateTime(account.addedAt) },
     { key: 'actions', label: '', className: 'w-12', render: (account) => <DropdownMenu><DropdownMenuTrigger render={<Button size="icon-sm" variant="ghost" aria-label={`管理 ${account.name}`} />}><MoreHorizontalIcon /></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuGroup><CertificateAccountDialog trigger={<DropdownMenuItem closeOnClick={false}><PencilIcon />编辑</DropdownMenuItem>} account={account} types={types.data ?? []} /><ConfirmAction trigger={<DropdownMenuItem variant="destructive" closeOnClick={false}><Trash2Icon />删除</DropdownMenuItem>} title={`删除 ${account.name}？`} description="仅没有关联订单或部署任务的账户可以删除。" destructive pending={remove.isPending} onConfirm={() => remove.mutate(account)} /></DropdownMenuGroup></DropdownMenuContent></DropdownMenu> },
   ]
-  return <div className="flex flex-col gap-6"><PageHeader eyebrow="账户管理" title={kind === 'issuance' ? '证书签发账户' : '证书部署账户'} description={kind === 'issuance' ? '管理申请与续签证书所需的服务商账户。' : '管理自动部署证书所需的服务商账户。'} action={<CertificateAccountDialog trigger={<Button><PlusIcon data-icon="inline-start" />添加账户</Button>} kind={kind} types={types.data ?? []} />} /><Tabs value={kind} onValueChange={(value) => { setSearchParams({ kind: value }, { replace: true }); setPage(1) }}><TabsList variant="line"><TabsTrigger value="issuance">签发账户</TabsTrigger><TabsTrigger value="deployment">部署账户</TabsTrigger></TabsList></Tabs><Card><CardContent className="flex flex-col gap-4 pt-6"><form className="grid gap-2 md:grid-cols-[minmax(14rem,1fr)_12rem_8rem_auto]" onSubmit={(event) => { event.preventDefault(); setPage(1); setQueryText(search.trim()) }}><div className="relative"><SearchIcon className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索账户名称或备注" /></div><Select items={[{ value: 'id', label: '按添加顺序' }, { value: 'type', label: '按账户类型' }, { value: 'name', label: '按账户名称' }, { value: 'remark', label: '按备注' }, { value: 'addedAt', label: '按添加时间' }]} value={sort} onValueChange={(value) => { setSort(value ?? 'id'); setPage(1) }}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="id">按添加顺序</SelectItem><SelectItem value="type">按账户类型</SelectItem><SelectItem value="name">按账户名称</SelectItem><SelectItem value="remark">按备注</SelectItem><SelectItem value="addedAt">按添加时间</SelectItem></SelectGroup></SelectContent></Select><Select items={[{ value: 'desc', label: '降序' }, { value: 'asc', label: '升序' }]} value={order} onValueChange={(value) => { setOrder(value ?? 'desc'); setPage(1) }}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="desc">降序</SelectItem><SelectItem value="asc">升序</SelectItem></SelectGroup></SelectContent></Select><Button type="submit" variant="outline">搜索</Button></form>{types.isError ? <QueryError error={types.error} retry={() => void types.refetch()} /> : null}{accounts.isError ? <QueryError error={accounts.error} retry={() => void accounts.refetch()} /> : accounts.isPending ? <LoadingTable /> : <DataTable rows={accounts.data.data} columns={columns} rowKey={(account) => String(account.id)} emptyTitle={kind === 'issuance' ? '暂无签发账户' : '暂无部署账户'} />}{accounts.data ? <ListPagination meta={accounts.data.meta} onPageChange={setPage} /> : null}</CardContent></Card></div>
+  return <div className="flex flex-col gap-6"><div className="flex justify-end"><CertificateAccountDialog trigger={<Button><PlusIcon data-icon="inline-start" />添加账户</Button>} kind={kind} types={types.data ?? []} /></div><Card><CardContent className="flex flex-col gap-4 pt-6"><form className="grid gap-2 md:grid-cols-[minmax(14rem,1fr)_12rem_8rem_auto]" onSubmit={(event) => { event.preventDefault(); setPage(1); setQueryText(search.trim()) }}><div className="relative"><SearchIcon className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索账户名称或备注" /></div><Select items={[{ value: 'id', label: '按添加顺序' }, { value: 'type', label: '按账户类型' }, { value: 'name', label: '按账户名称' }, { value: 'remark', label: '按备注' }, { value: 'addedAt', label: '按添加时间' }]} value={sort} onValueChange={(value) => { setSort(value ?? 'id'); setPage(1) }}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="id">按添加顺序</SelectItem><SelectItem value="type">按账户类型</SelectItem><SelectItem value="name">按账户名称</SelectItem><SelectItem value="remark">按备注</SelectItem><SelectItem value="addedAt">按添加时间</SelectItem></SelectGroup></SelectContent></Select><Select items={[{ value: 'desc', label: '降序' }, { value: 'asc', label: '升序' }]} value={order} onValueChange={(value) => { setOrder(value ?? 'desc'); setPage(1) }}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="desc">降序</SelectItem><SelectItem value="asc">升序</SelectItem></SelectGroup></SelectContent></Select><Button type="submit" variant="outline">搜索</Button></form>{types.isError ? <QueryError error={types.error} retry={() => void types.refetch()} /> : null}{accounts.isError ? <QueryError error={accounts.error} retry={() => void accounts.refetch()} /> : accounts.isPending ? <LoadingTable /> : <DataTable rows={accounts.data.data} columns={columns} rowKey={(account) => String(account.id)} emptyTitle={kind === 'issuance' ? '暂无签发账户' : '暂无部署账户'} />}{accounts.data ? <ListPagination meta={accounts.data.meta} onPageChange={setPage} /> : null}</CardContent></Card></div>
 }
 
 function CertificateAccountDialog({ trigger, account, kind = 'issuance', types }: { trigger: ReactElement; account?: CertificateAccountSummary; kind?: CertificateAccountKind; types: CertificateAccountTypeDefinition[] }) {

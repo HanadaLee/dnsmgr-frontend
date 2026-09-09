@@ -11,16 +11,12 @@ import { LoadingTable } from '@/components/loading-table'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/toast'
 const DashboardPage = lazy(() => import('@/pages/dashboard-page').then((module) => ({ default: module.DashboardPage })))
-const AxisNowDomainsPage = lazy(() => import('@/pages/axisnow-domains-page').then((module) => ({ default: module.AxisNowDomainsPage })))
-const AxisNowEipsPage = lazy(() => import('@/pages/axisnow-eips-page').then((module) => ({ default: module.AxisNowEipsPage })))
-const AxisNowRulesPage = lazy(() => import('@/pages/axisnow-rules-page').then((module) => ({ default: module.AxisNowRulesPage })))
-const AxisNowTagsPage = lazy(() => import('@/pages/axisnow-tags-page').then((module) => ({ default: module.AxisNowTagsPage })))
-const CertificateAccountsPage = lazy(() => import('@/pages/certificate-accounts-page').then((module) => ({ default: module.CertificateAccountsPage })))
+const AccountsPage = lazy(() => import('@/pages/accounts-page').then((module) => ({ default: module.AccountsPage })))
+const AxisNowPage = lazy(() => import('@/pages/axisnow-page').then((module) => ({ default: module.AxisNowPage })))
 const CertificateCnamesPage = lazy(() => import('@/pages/certificate-cnames-page').then((module) => ({ default: module.CertificateCnamesPage })))
 const CertificateDeploymentsPage = lazy(() => import('@/pages/certificate-deployments-page').then((module) => ({ default: module.CertificateDeploymentsPage })))
 const CertificateOrdersPage = lazy(() => import('@/pages/certificate-orders-page').then((module) => ({ default: module.CertificateOrdersPage })))
 const CloudflarePage = lazy(() => import('@/pages/cloudflare-page').then((module) => ({ default: module.CloudflarePage })))
-const DomainAccountsPage = lazy(() => import('@/pages/domain-accounts-page').then((module) => ({ default: module.DomainAccountsPage })))
 const DomainCategoriesPage = lazy(() => import('@/pages/domain-categories-page').then((module) => ({ default: module.DomainCategoriesPage })))
 const DomainsPage = lazy(() => import('@/pages/domains-page').then((module) => ({ default: module.DomainsPage })))
 const LogsPage = lazy(() => import('@/pages/logs-page').then((module) => ({ default: module.LogsPage })))
@@ -63,21 +59,17 @@ export default function App() {
                   <Route path="domains" element={<CapabilityRoute capability="domains" excludeDomainUser><DomainsPage /></CapabilityRoute>} />
                   <Route path="domains/:domainId" element={<CapabilityRoute capability="domains"><RecordsPage /></CapabilityRoute>} />
                   <Route path="record-tools" element={<CapabilityRoute capability="domains" excludeDomainUser><RecordToolsPage /></CapabilityRoute>} />
-                  <Route path="domain-accounts" element={<CapabilityRoute capability="domainAccounts"><DomainAccountsPage /></CapabilityRoute>} />
+                  <Route path="accounts" element={<CapabilityRoute capability={['domainAccounts', 'certificates']}><AccountsPage /></CapabilityRoute>} />
                   <Route path="domain-categories" element={<CapabilityRoute capability="domainCategories"><DomainCategoriesPage /></CapabilityRoute>} />
                   <Route path="monitoring" element={<CapabilityRoute capability="monitoring"><MonitoringPage /></CapabilityRoute>} />
                   <Route path="schedules" element={<CapabilityRoute capability="schedules"><SchedulesPage /></CapabilityRoute>} />
                   <Route path="optimize-ip" element={<CapabilityRoute capability="optimizeIp"><OptimizeIpPage /></CapabilityRoute>} />
-                  <Route path="certificate-accounts" element={<CapabilityRoute capability="certificates"><CertificateAccountsPage /></CapabilityRoute>} />
                   <Route path="certificate-orders" element={<CapabilityRoute capability="certificates"><CertificateOrdersPage /></CapabilityRoute>} />
                   <Route path="certificate-deployments" element={<CapabilityRoute capability="certificates"><CertificateDeploymentsPage /></CapabilityRoute>} />
                   <Route path="certificate-cnames" element={<CapabilityRoute capability="certificates"><CertificateCnamesPage /></CapabilityRoute>} />
                   <Route path="certificate-settings" element={<CapabilityRoute capability="certificates"><Navigate to="/system?tab=certificates" replace /></CapabilityRoute>} />
                   <Route path="cloudflare" element={<CapabilityRoute capability="domainAccounts"><CloudflarePage /></CapabilityRoute>} />
-                  <Route path="axisnow/domains" element={<CapabilityRoute capability="axisNow"><AxisNowDomainsPage /></CapabilityRoute>} />
-                  <Route path="axisnow/domains/:accountId/:domainUuid" element={<CapabilityRoute capability="axisNow"><AxisNowRulesPage /></CapabilityRoute>} />
-                  <Route path="axisnow/eips" element={<CapabilityRoute capability="axisNow"><AxisNowEipsPage /></CapabilityRoute>} />
-                  <Route path="axisnow/tags" element={<CapabilityRoute capability="axisNow"><AxisNowTagsPage /></CapabilityRoute>} />
+                  <Route path="axisnow" element={<CapabilityRoute capability="axisNow"><AxisNowPage /></CapabilityRoute>} />
                   <Route path="users" element={<CapabilityRoute capability="users"><UsersPage /></CapabilityRoute>} />
                   <Route path="logs" element={<CapabilityRoute capability="logs"><LogsPage /></CapabilityRoute>} />
                   <Route path="system" element={<CapabilityRoute capability="systemSettings"><SystemPage /></CapabilityRoute>} />
@@ -111,11 +103,14 @@ function HomeRoute() {
 }
 
 function CapabilityRoute({ capability, excludeDomainUser = false, children }: {
-  capability: keyof SessionCapabilities
+  capability: keyof SessionCapabilities | Array<keyof SessionCapabilities>
   excludeDomainUser?: boolean
   children: React.ReactNode
 }) {
   const session = useSession()
-  const allowed = session.capabilities[capability] && (!excludeDomainUser || session.user.type !== 'domain')
+  const hasCapability = Array.isArray(capability)
+    ? capability.some((item) => session.capabilities[item])
+    : session.capabilities[capability]
+  const allowed = hasCapability && (!excludeDomainUser || session.user.type !== 'domain')
   return allowed ? children : <Navigate to={landingPath(session)} replace />
 }

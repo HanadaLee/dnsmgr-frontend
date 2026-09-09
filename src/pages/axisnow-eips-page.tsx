@@ -8,7 +8,6 @@ import { ConfirmAction } from '@/components/confirm-action'
 import { DataTable, type DataColumn } from '@/components/data-table'
 import { ListPagination } from '@/components/list-pagination'
 import { LoadingTable } from '@/components/loading-table'
-import { PageHeader } from '@/components/page-header'
 import { QueryError } from '@/components/query-error'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -84,7 +83,6 @@ export function AxisNowEipsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="第三方高级功能" title="EIP 管理" description="统一查看自有与其他租户共享的 AxisNow EIP。" />
       <Card><CardContent className="flex flex-col gap-4 pt-6">
         <form className="grid gap-2 lg:grid-cols-[minmax(16rem,1fr)_14rem_auto_auto_auto_auto]" onSubmit={(event) => { event.preventDefault(); setPage(1); setSelected(new Set()); setQueryText(search.trim()) }}>
           <div className="relative"><SearchIcon className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索 EIP、标签、提供商或平台账户" /></div>

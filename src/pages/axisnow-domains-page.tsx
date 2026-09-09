@@ -9,7 +9,6 @@ import { ConfirmAction } from '@/components/confirm-action'
 import { DataTable, type DataColumn } from '@/components/data-table'
 import { ListPagination } from '@/components/list-pagination'
 import { LoadingTable } from '@/components/loading-table'
-import { PageHeader } from '@/components/page-header'
 import { QueryError } from '@/components/query-error'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -56,7 +55,7 @@ export function AxisNowDomainsPage() {
       label: '域名',
       render: (domain) => (
         <div className="min-w-64">
-          <Link className="font-medium text-primary hover:underline" to={`/axisnow/domains/${domain.accountId}/${domain.uuid}`}>{domain.domain}</Link>
+          <Link className="font-medium text-primary hover:underline" to={`/axisnow?tab=domains&accountId=${domain.accountId}&domainUuid=${domain.uuid}`}>{domain.domain}</Link>
           <p className="text-xs text-muted-foreground">{domain.eipCount} EIP · {domain.ruleCount} 路由规则</p>
         </div>
       ),
@@ -75,7 +74,7 @@ export function AxisNowDomainsPage() {
           <DropdownMenuTrigger render={<Button size="icon-sm" variant="ghost" aria-label={`管理 ${domain.domain}`} />}><MoreHorizontalIcon /></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuGroup>
-              <DropdownMenuItem render={<Link to={`/axisnow/domains/${domain.accountId}/${domain.uuid}`} />}><RouteIcon />路由规则</DropdownMenuItem>
+              <DropdownMenuItem render={<Link to={`/axisnow?tab=domains&accountId=${domain.accountId}&domainUuid=${domain.uuid}`} />}><RouteIcon />路由规则</DropdownMenuItem>
               <DomainDialog trigger={<DropdownMenuItem closeOnClick={false}><PencilIcon />编辑</DropdownMenuItem>} accounts={accounts.data ?? []} domain={domain} />
               <ConfirmAction trigger={<DropdownMenuItem variant="destructive" closeOnClick={false}><Trash2Icon />删除</DropdownMenuItem>} title="删除 DNS 路由域名？" description={`${domain.domain} 及其路由规则可能受到影响。`} destructive pending={remove.isPending} onConfirm={() => remove.mutate(domain)} />
             </DropdownMenuGroup>
@@ -99,7 +98,6 @@ export function AxisNowDomainsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="第三方高级功能" title="DNS 路由" description="管理不同平台账户下的 AxisNow DNS 调度域名。" />
       <Card>
         <CardContent className="flex flex-col gap-4 pt-6">
           <form className="grid gap-2 lg:grid-cols-[minmax(16rem,1fr)_14rem_auto_auto_auto]" onSubmit={(event) => { event.preventDefault(); submitSearch() }}>

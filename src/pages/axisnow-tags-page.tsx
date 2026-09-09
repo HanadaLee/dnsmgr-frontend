@@ -8,7 +8,6 @@ import { ConfirmAction } from '@/components/confirm-action'
 import { DataTable, type DataColumn } from '@/components/data-table'
 import { ListPagination } from '@/components/list-pagination'
 import { LoadingTable } from '@/components/loading-table'
-import { PageHeader } from '@/components/page-header'
 import { QueryError } from '@/components/query-error'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -63,7 +62,6 @@ export function AxisNowTagsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="第三方高级功能" title="标签管理" description="维护 AxisNow EIP 标签及其规则引用关系。" />
       <Card><CardContent className="flex flex-col gap-4 pt-6">
         <form className="grid gap-2 lg:grid-cols-[minmax(16rem,1fr)_14rem_auto_auto_auto]" onSubmit={(event) => { event.preventDefault(); setPage(1); setQueryText(search.trim()) }}>
           <div className="relative"><SearchIcon className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索标签、说明或平台账户" /></div>
