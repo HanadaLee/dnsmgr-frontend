@@ -93,6 +93,10 @@ const strategyNames: Record<string, string> = {
   quality_optimized: "优选",
 };
 
+function addressKey(value: string) {
+  return value.trim().toLowerCase().replace(/\.+$/, "");
+}
+
 function addressTone(item: AxisNowRuleResolvedAddress, selected: boolean) {
   if (item.status?.toLowerCase() === "unavailable") {
     return "text-destructive";
@@ -104,7 +108,7 @@ function addressTone(item: AxisNowRuleResolvedAddress, selected: boolean) {
 }
 
 function RulePoolCell({ rule }: { rule: AxisNowRule }) {
-  const resolved = new Set(rule.resolvedAddresses.map((item) => item.address.toLowerCase()));
+  const resolved = new Set(rule.resolvedAddresses.map((item) => addressKey(item.address)));
   const heading = rule.poolAddressCount > 0
     ? `${rule.poolAddressCount} 个地址`
     : rule.poolSummary ?? "—";
@@ -161,7 +165,7 @@ function RulePoolCell({ rule }: { rule: AxisNowRule }) {
                 {rule.poolAddresses.map((item, index) => (
                   <TableRow key={`${item.address}-${index}`}>
                     <TableCell>
-                      <div className={`flex items-center gap-2 font-mono ${addressTone(item, resolved.has(item.address.toLowerCase()))}`}>
+                      <div className={`flex items-center gap-2 font-mono ${addressTone(item, resolved.has(addressKey(item.address)))}`}>
                         <CountryFlag countryCode={item.countryCode} />
                         <span>{item.address}</span>
                       </div>
@@ -177,7 +181,7 @@ function RulePoolCell({ rule }: { rule: AxisNowRule }) {
                         </div>
                       ) : "—"}
                     </TableCell>
-                    <TableCell className={`text-right font-mono tabular-nums ${addressTone(item, resolved.has(item.address.toLowerCase()))}`}>
+                    <TableCell className={`text-right font-mono tabular-nums ${addressTone(item, resolved.has(addressKey(item.address)))}`}>
                       {item.score !== undefined ? Number(item.score.toFixed(2)) : "—"}
                     </TableCell>
                   </TableRow>
@@ -236,7 +240,7 @@ function RuleResolvedCell({ rule }: { rule: AxisNowRule }) {
       ) : (
         <p className="text-xs text-muted-foreground">暂无解析结果</p>
       )}
-      <p className="text-xs text-muted-foreground">最后更新时间：{ruleUpdatedAt(rule.updatedAt)}</p>
+      <p className="text-xs text-muted-foreground">最后更新时间：{ruleUpdatedAt(rule.resolvedUpdatedAt)}</p>
     </div>
   );
 }
