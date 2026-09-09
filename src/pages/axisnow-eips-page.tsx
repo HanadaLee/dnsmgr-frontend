@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { MoreHorizontalIcon, PencilIcon, PlusIcon, RefreshCwIcon, SearchIcon, Trash2Icon } from 'lucide-react'
+import { MoreHorizontalIcon, PencilIcon, PlusIcon, RefreshCwIcon, SearchIcon, Trash2Icon, XIcon } from 'lucide-react'
 
 import { apiGet, apiPost, apiPut } from '@/api/client'
 import type { AxisNowAccount, AxisNowEip, AxisNowEipOptions, DataResponse, OperationResult, PageResponse } from '@/api/types'
@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldTitle } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -52,12 +52,12 @@ export function AxisNowEipsPage() {
       key: 'address',
       label: 'EIP',
       render: (eip) => {
-        const location = [eip.geo.provinceCode, eip.geo.cityName].filter(Boolean).join(' / ')
+        const location = eip.geo.cityName?.trim()
         return <div className="min-w-48"><p className="flex items-center gap-2 font-medium"><CountryFlag countryCode={eip.geo.countryCode} /><span>{eip.address}</span></p><p className="text-xs text-muted-foreground">{location || eip.geo.ispName || '—'}</p></div>
       },
     },
     { key: 'account', label: '平台账户', render: (eip) => eip.accountName },
-    { key: 'tags', label: '标签', render: (eip) => eip.tagNames.length ? <div className="flex min-w-52 flex-wrap gap-1">{eip.tagNames.map((tag) => <Badge key={tag} variant="secondary">{tag}</Badge>)}</div> : '—' },
+    { key: 'tags', label: '标签', render: (eip) => <EipTagsCell eip={eip} /> },
     { key: 'reference', label: '被引用', render: (eip) => eip.referencedCount },
     { key: 'provider', label: '提供商', render: (eip) => <div><p>{eip.providerName}</p>{eip.dataOrigin === 'subscribed' ? <p className="text-xs text-muted-foreground">订阅资源</p> : null}</div> },
     { key: 'time', label: '更新时间', render: (eip) => formatDateTime(eip.updatedAt) },
@@ -103,6 +103,66 @@ export function AxisNowEipsPage() {
 
 function rowKey(eip: AxisNowEip) {
   return `${eip.accountId}:${eip.uuid}`
+}
+
+function EipTagsCell({ eip }: { eip: AxisNowEip }) {
+  const [open, setOpen] = useState(false)
+  const options = useQuery({
+    queryKey: ['axisnow-options', String(eip.accountId), 'eip'],
+    queryFn: async () => (await apiGet<DataResponse<AxisNowEipOptions>>(`/api/web/v1/axisnow/accounts/${eip.accountId}/options`, { scope: 'eip' })).data,
+    enabled: open && eip.canManage,
+  })
+  const targetUuid = eip.ownerType === 'cluster' ? eip.clusterUuid : eip.edgeUuid
+  const update = useApiMutation<string[], DataResponse<OperationResult>>({
+    mutationFn: async (tagUuids) => {
+      if (!targetUuid) throw new Error('EIP 缺少归属信息，无法更新标签')
+      return apiPut(`/api/web/v1/axisnow/eips/${eip.uuid}`, {
+        accountId: eip.accountId,
+        targetType: eip.ownerType,
+        targetUuid,
+        tagUuids,
+        address: eip.address,
+      })
+    },
+    successMessage: (_, tagUuids) => tagUuids.length < eip.tagUuids.length ? 'EIP 标签已移除' : 'EIP 标签已添加',
+    invalidate: [['axisnow-eips'], ['axisnow-options']],
+    onSuccess: () => setOpen(false),
+  })
+  const assigned = new Set(eip.tagUuids)
+  const availableTags = (options.data?.tags ?? []).filter((tag) => !assigned.has(tag.uuid))
+
+  return (
+    <div className="flex min-w-52 flex-wrap items-center gap-1">
+      {eip.tagNames.map((name, index) => {
+        const uuid = eip.tagUuids[index]
+        return eip.canManage && uuid ? (
+          <Badge
+            key={uuid}
+            variant="secondary"
+            render={<button type="button" disabled={update.isPending} aria-label={`移除标签 ${name}`} onClick={() => update.mutate(eip.tagUuids.filter((tagUuid) => tagUuid !== uuid))} />}
+          >
+            {name}<XIcon data-icon="inline-end" />
+          </Badge>
+        ) : <Badge key={`${name}:${index}`} variant="secondary">{name}</Badge>
+      })}
+      {eip.canManage ? (
+        <DropdownMenu open={open} onOpenChange={setOpen}>
+          <DropdownMenuTrigger render={<Button type="button" size="icon-xs" variant="outline" disabled={update.isPending} aria-label={`为 ${eip.address} 添加标签`} />}>
+            {update.isPending ? <Spinner /> : <PlusIcon />}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>添加标签</DropdownMenuLabel>
+              {options.isPending ? <DropdownMenuItem disabled><Spinner data-icon="inline-start" />正在加载</DropdownMenuItem> : null}
+              {options.isError ? <DropdownMenuItem onClick={() => void options.refetch()}><RefreshCwIcon />加载失败，点击重试</DropdownMenuItem> : null}
+              {!options.isPending && !options.isError && !availableTags.length ? <DropdownMenuItem disabled>没有可添加的标签</DropdownMenuItem> : null}
+              {availableTags.map((tag) => <DropdownMenuItem key={tag.uuid} onClick={() => update.mutate([...eip.tagUuids, tag.uuid])}>{tag.name}</DropdownMenuItem>)}
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+    </div>
+  )
 }
 
 function EipDialog({ trigger, accounts, eip }: { trigger: React.ReactElement; accounts: AxisNowAccount[]; eip?: AxisNowEip }) {
