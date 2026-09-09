@@ -4,8 +4,14 @@ import type { CertificateAccountKind } from "@/api/types";
 import { useSession } from "@/auth/session-context";
 import { PageHeader } from "@/components/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CertificateAccountsPage } from "@/pages/certificate-accounts-page";
-import { DomainAccountsPage } from "@/pages/domain-accounts-page";
+import {
+  CertificateAccountCreateButton,
+  CertificateAccountsPage,
+} from "@/pages/certificate-accounts-page";
+import {
+  DomainAccountCreateButton,
+  DomainAccountsPage,
+} from "@/pages/domain-accounts-page";
 
 type AccountTab = "domains" | CertificateAccountKind;
 
@@ -41,13 +47,20 @@ export function AccountsPage() {
           setSearchParams({ tab: value }, { replace: true })
         }
       >
-        <TabsList variant="line">
-          {tabs.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value}>
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="flex items-center justify-between gap-4">
+          <TabsList variant="line">
+            {tabs.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value}>
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          {activeTab === "domains" && session.capabilities.domainAccounts ? (
+            <DomainAccountCreateButton />
+          ) : activeTab !== "domains" && session.capabilities.certificates ? (
+            <CertificateAccountCreateButton kind={activeTab} />
+          ) : null}
+        </div>
         {session.capabilities.domainAccounts ? (
           <TabsContent value="domains">
             <DomainAccountsPage />
