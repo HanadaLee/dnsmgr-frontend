@@ -141,7 +141,17 @@ function DomainDialog({ trigger, accounts, domain }: { trigger: React.ReactEleme
   })
   const systemZones = useMemo(() => (options.data?.systemProviders ?? []).flatMap((provider) => provider.zones.map((zone) => ({ ...zone, provider }))), [options.data])
   const selectedZone = systemZones.find((zone) => zone.uuid === zoneUuid)
-  const selectedProviders = useMemo(() => providerSource === 'platform' ? options.data?.systemProviders ?? [] : options.data?.providers ?? [], [options.data, providerSource])
+  const selectedProviders = useMemo(() => {
+    const providers = providerSource === 'platform' ? options.data?.systemProviders ?? [] : options.data?.providers ?? []
+    if (!domain?.dnsProviderUuid || providers.some((provider) => provider.uuid === domain.dnsProviderUuid)) return providers
+    return [...providers, {
+      uuid: domain.dnsProviderUuid,
+      name: domain.providerType ?? '当前 DNS 提供商',
+      type: domain.providerType ?? '',
+      source: domain.providerSource,
+      zones: [],
+    }]
+  }, [domain, options.data, providerSource])
 
   useEffect(() => {
     if (!open) return
@@ -161,23 +171,23 @@ function DomainDialog({ trigger, accounts, domain }: { trigger: React.ReactEleme
 
   useEffect(() => {
     if (!options.data) return
+    // Existing domains keep the provider and managed zone reported by
+    // AxisNow. Falling back to the first option here could display and submit
+    // a different provider when an older managed zone is absent from options.
+    if (domain) return
     if (providerSource === 'platform') {
-      const zone = systemZones.find((item) => item.uuid === (domain?.dnsZoneUuid ?? zoneUuid)) ?? systemZones[0]
+      const zone = systemZones.find((item) => item.uuid === zoneUuid) ?? systemZones[0]
       if (!zone) return
       setZoneUuid(zone.uuid)
       setProviderUuid(zone.provider.uuid)
-      if (domain && !prefix) {
-        const suffix = zone.zone.replace(/^\.+|\.+$/g, '')
-        setPrefix(domain.domain.toLowerCase().endsWith(`.${suffix.toLowerCase()}`) ? domain.domain.slice(0, -suffix.length - 1) : domain.domain)
-      }
     } else if (!selectedProviders.some((provider) => provider.uuid === providerUuid)) {
       setProviderUuid(selectedProviders[0]?.uuid ?? '')
     }
   }, [domain, options.data, prefix, providerSource, providerUuid, selectedProviders, systemZones, zoneUuid])
 
-  const completeDomain = providerSource === 'platform'
+  const completeDomain = domain?.domain ?? (providerSource === 'platform'
     ? `${prefix.trim().replace(/^\.+|\.+$/g, '')}.${selectedZone?.zone.replace(/^\.+|\.+$/g, '') ?? ''}`.replace(/\.$/, '')
-    : domainValue.trim()
+    : domainValue.trim())
   const canSubmit = Boolean(accountId && providerUuid && completeDomain && (!domain || providerSource === domain.providerSource))
 
   return (
@@ -186,14 +196,15 @@ function DomainDialog({ trigger, accounts, domain }: { trigger: React.ReactEleme
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-xl">
         <form onSubmit={(event) => {
           event.preventDefault()
-          save.mutate({ accountId: Number(accountId), domain: completeDomain, providerSource, dnsProviderUuid: providerUuid, dnsZoneUuid: providerSource === 'platform' ? zoneUuid : null, recordType, name: name || null, description: description || null, shareDefault, exposeEips }, { onSuccess: () => setOpen(false) })
+          const body = { accountId: Number(accountId), providerSource, dnsProviderUuid: providerUuid, dnsZoneUuid: providerSource === 'platform' ? zoneUuid : null, recordType, name: name || null, description: description || null, shareDefault, exposeEips }
+          save.mutate(domain ? body : { ...body, domain: completeDomain }, { onSuccess: () => setOpen(false) })
         }}>
           <DialogHeader><DialogTitle>{domain ? '编辑 DNS 路由域名' : '新增 DNS 路由域名'}</DialogTitle><DialogDescription>AxisNow 托管域名使用锁定后缀；自托管域名由已接入的 DNS 提供商解析。</DialogDescription></DialogHeader>
           <div className="py-5">
             <FieldGroup>
               <Field><FieldLabel>平台账户</FieldLabel><Select items={accounts.map((account) => ({ value: String(account.id), label: account.name }))} value={accountId || null} disabled={Boolean(domain)} onValueChange={(value) => setAccountId(value ?? '')}><SelectTrigger className="w-full"><SelectValue placeholder="请选择平台账户" /></SelectTrigger><SelectContent><SelectGroup>{accounts.map((account) => <SelectItem key={account.id} value={String(account.id)}>{account.name}</SelectItem>)}</SelectGroup></SelectContent></Select></Field>
               <Field><FieldLabel>托管类型</FieldLabel><Select items={[{ value: 'platform', label: 'AxisNow 托管' }, { value: 'self-hosted', label: '自托管' }]} value={providerSource} disabled={Boolean(domain)} onValueChange={(value) => setProviderSource((value ?? 'platform') as 'platform' | 'self-hosted')}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="platform">AxisNow 托管</SelectItem><SelectItem value="self-hosted">自托管</SelectItem></SelectGroup></SelectContent></Select></Field>
-              {providerSource === 'platform' ? <Field><FieldLabel>具体域名</FieldLabel><div className="flex"><Input className="rounded-r-none" value={prefix} onChange={(event) => setPrefix(event.target.value)} placeholder="域名前缀，例如 china-optimized-hcdn.asia" /><Select items={systemZones.map((zone) => ({ value: zone.uuid, label: zone.zone }))} value={zoneUuid || null} onValueChange={(value) => { const next = value ?? ''; setZoneUuid(next); const zone = systemZones.find((item) => item.uuid === next); setProviderUuid(zone?.provider.uuid ?? '') }}><SelectTrigger className="w-56 rounded-l-none border-l-0"><SelectValue placeholder="选择后缀" /></SelectTrigger><SelectContent><SelectGroup>{systemZones.map((zone) => <SelectItem key={zone.uuid} value={zone.uuid}>.{zone.zone}</SelectItem>)}</SelectGroup></SelectContent></Select></div><FieldDescription>后缀由 AxisNow 提供且不可自由修改。</FieldDescription></Field> : <Field><FieldLabel htmlFor="axisnow-domain">具体域名</FieldLabel><Input id="axisnow-domain" value={domainValue} onChange={(event) => setDomainValue(event.target.value)} placeholder="edge.example.com" /><FieldDescription>请输入具体完整域名，不是根域名。</FieldDescription></Field>}
+              {domain ? <Field data-disabled><FieldLabel htmlFor="axisnow-domain-readonly">具体域名</FieldLabel><Input id="axisnow-domain-readonly" value={domain.domain} disabled /><FieldDescription>AxisNow 域名创建后不能修改；如需更换域名，请删除后重新创建。</FieldDescription></Field> : providerSource === 'platform' ? <Field><FieldLabel>具体域名</FieldLabel><div className="flex"><Input className="rounded-r-none" value={prefix} onChange={(event) => setPrefix(event.target.value)} placeholder="域名前缀，例如 china-optimized-hcdn.asia" /><Select items={systemZones.map((zone) => ({ value: zone.uuid, label: zone.zone }))} value={zoneUuid || null} onValueChange={(value) => { const next = value ?? ''; setZoneUuid(next); const zone = systemZones.find((item) => item.uuid === next); setProviderUuid(zone?.provider.uuid ?? '') }}><SelectTrigger className="w-56 rounded-l-none border-l-0"><SelectValue placeholder="选择后缀" /></SelectTrigger><SelectContent><SelectGroup>{systemZones.map((zone) => <SelectItem key={zone.uuid} value={zone.uuid}>.{zone.zone}</SelectItem>)}</SelectGroup></SelectContent></Select></div><FieldDescription>后缀由 AxisNow 提供且不可自由修改。</FieldDescription></Field> : <Field><FieldLabel htmlFor="axisnow-domain">具体域名</FieldLabel><Input id="axisnow-domain" value={domainValue} onChange={(event) => setDomainValue(event.target.value)} placeholder="edge.example.com" /><FieldDescription>请输入具体完整域名，不是根域名。</FieldDescription></Field>}
               <div className="grid gap-4 sm:grid-cols-2"><Field><FieldLabel>记录类型</FieldLabel><Select items={[{ value: 'A', label: 'A' }, { value: 'CNAME', label: 'CNAME' }]} value={recordType} disabled={Boolean(domain)} onValueChange={(value) => setRecordType((value ?? 'A') as 'A' | 'CNAME')}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="A">A</SelectItem><SelectItem value="CNAME">CNAME</SelectItem></SelectGroup></SelectContent></Select></Field><Field><FieldLabel>DNS 提供商</FieldLabel><Select items={selectedProviders.map((provider) => ({ value: provider.uuid, label: `${provider.name} (${provider.type || '—'})` }))} value={providerUuid || null} disabled={providerSource === 'platform'} onValueChange={(value) => setProviderUuid(value ?? '')}><SelectTrigger className="w-full"><SelectValue placeholder="请选择 DNS 提供商" /></SelectTrigger><SelectContent><SelectGroup>{selectedProviders.map((provider) => <SelectItem key={provider.uuid} value={provider.uuid}>{provider.name} ({provider.type || '—'})</SelectItem>)}</SelectGroup></SelectContent></Select></Field></div>
               <Field><FieldLabel htmlFor="axisnow-domain-name">名称</FieldLabel><Input id="axisnow-domain-name" value={name} maxLength={50} onChange={(event) => setName(event.target.value)} placeholder="可选，便于备注" /></Field>
               <Field><FieldLabel htmlFor="axisnow-domain-description">说明</FieldLabel><Textarea id="axisnow-domain-description" value={description} maxLength={255} onChange={(event) => setDescription(event.target.value)} /></Field>
