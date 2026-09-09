@@ -57,6 +57,12 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
   Select,
   SelectContent,
   SelectGroup,
@@ -82,27 +88,66 @@ function RulePoolCell({ rule }: { rule: AxisNowRule }) {
   const heading = rule.poolAddressCount > 0
     ? `${rule.poolAddressCount} 个地址`
     : rule.poolSummary ?? "—";
-  return (
+  const summary = (
     <div className="flex min-w-56 max-w-80 flex-col gap-1.5">
       <p className="font-medium">{heading}</p>
       {rule.poolGroups.map((group, index) => {
-        const shown = group.items.slice(0, 8);
         return (
           <div key={`${group.type}-${index}`} className="flex flex-wrap items-center gap-1">
             <Badge variant="secondary">{group.typeName}</Badge>
-            {shown.length ? (
+            {group.type === "eip_tag" && group.items.length ? (
               <span className="text-xs text-muted-foreground">
-                {shown.join("、")}
-                {group.items.length > shown.length ? ` 等 ${group.items.length} 项` : ""}
+                {group.items.join("、")}
               </span>
             ) : null}
           </div>
         );
       })}
-      {rule.poolTruncated ? (
-        <p className="text-xs text-muted-foreground">地址池较大，仅展示接口返回的部分地址</p>
-      ) : null}
     </div>
+  );
+  if (!rule.poolAddresses.length) return summary;
+  const addressList = (
+    <div className="flex flex-col gap-2 pr-2">
+      {rule.poolAddresses.map((item, index) => (
+        <div key={`${item.address}-${index}`} className="flex justify-between gap-6 font-mono text-sm">
+          <span>{item.address}</span>
+          {item.score !== undefined ? (
+            <span className="text-primary tabular-nums">{Number(item.score.toFixed(2))}</span>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+  return (
+    <HoverCard>
+      <HoverCardTrigger
+        delay={100}
+        closeDelay={150}
+        render={
+          <button
+            type="button"
+            className="cursor-help text-left"
+            aria-label={`查看完整地址池，共 ${rule.poolAddressCount} 个地址`}
+          />
+        }
+      >
+        {summary}
+      </HoverCardTrigger>
+      <HoverCardContent side="right" align="start" className="w-[min(36rem,calc(100vw-2rem))]">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-4">
+            <p className="font-medium">完整地址池</p>
+            <Badge variant="outline">{rule.poolAddressCount} 个地址</Badge>
+          </div>
+          {rule.poolAddresses.length > 8 ? (
+            <ScrollArea className="h-80">{addressList}</ScrollArea>
+          ) : addressList}
+          {rule.poolTruncated ? (
+            <p className="text-xs text-muted-foreground">接口仅返回部分地址，完整数量以上方统计为准。</p>
+          ) : null}
+        </div>
+      </HoverCardContent>
+    </HoverCard>
   );
 }
 

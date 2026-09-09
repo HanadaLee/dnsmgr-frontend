@@ -433,6 +433,7 @@ export type AxisNowRule = {
   strategy?: string
   poolSummary?: string
   poolGroups: AxisNowRulePoolGroup[]
+  poolAddresses: AxisNowRuleResolvedAddress[]
   poolAddressCount: number
   poolTruncated: boolean
   strategyQuantity?: number
