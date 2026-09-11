@@ -721,7 +721,6 @@ function ProbeStatusSummary({ statuses }: { statuses: AxisNowRuleAutomation["pro
         {statuses.map((item) => (
           <Badge key={item.address} variant={probeStatusVariant(item.status)}>
             {item.address} · {probeStatusName(item.status)}
-            {item.avgConnectLatency !== undefined ? ` · ${item.avgConnectLatency} ms` : ""}
           </Badge>
         ))}
       </div>
