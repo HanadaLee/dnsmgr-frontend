@@ -53,7 +53,7 @@ export function AxisNowEipsPage() {
       label: 'EIP',
       render: (eip) => {
         const location = eip.geo.cityName?.trim()
-        return <div className="min-w-48"><p className="flex items-center gap-2 font-medium"><CountryFlag countryCode={eip.geo.countryCode} /><span>{eip.address}</span></p><p className="text-xs text-muted-foreground">{location || eip.geo.ispName || '—'}</p></div>
+        return <div className="min-w-48"><p className="flex items-center gap-2 font-medium"><CountryFlag countryCode={eip.geo.countryCode} provinceCode={eip.geo.provinceCode} /><span>{eip.address}</span></p><p className="text-xs text-muted-foreground">{location || eip.geo.ispName || '—'}</p></div>
       },
     },
     { key: 'account', label: '平台账户', render: (eip) => eip.accountName },

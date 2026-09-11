@@ -172,7 +172,7 @@ function RulePoolCell({ rule }: { rule: AxisNowRule }) {
                   <TableRow key={`${item.address}-${index}`}>
                     <TableCell>
                       <div className={`flex items-center gap-2 font-mono ${addressTone(item, resolved.has(addressKey(item.address)))}`}>
-                        <CountryFlag countryCode={item.countryCode} />
+                        <CountryFlag countryCode={item.countryCode} provinceCode={item.provinceCode} />
                         <span>{item.address}</span>
                       </div>
                     </TableCell>
@@ -234,7 +234,7 @@ function RuleResolvedCell({ rule }: { rule: AxisNowRule }) {
         <div className="flex flex-col gap-0.5">
           {rule.resolvedAddresses.map((item, index) => (
             <div key={`${item.address}-${index}`} className={`flex items-center justify-between gap-5 font-mono text-sm ${addressTone(item, true)}`}>
-              <span className="flex items-center gap-2"><CountryFlag countryCode={item.countryCode} />{item.address}</span>
+              <span className="flex items-center gap-2"><CountryFlag countryCode={item.countryCode} provinceCode={item.provinceCode} />{item.address}</span>
               {item.score !== undefined ? (
                 <span className="tabular-nums">
                   {Number(item.score.toFixed(2))}
@@ -471,18 +471,6 @@ export function AxisNowRulesPage({
                 options={options.data}
                 rule={rule}
               />
-              <RuleAutomationDialog
-                trigger={
-                  <DropdownMenuItem closeOnClick={false}>
-                    <Clock3Icon />
-                    自动调度
-                  </DropdownMenuItem>
-                }
-                accountId={accountId}
-                domain={domain.data}
-                rule={rule}
-                options={options.data}
-              />
               <DropdownMenuItem
                 disabled={status.isPending}
                 onClick={() => status.mutate(rule)}
@@ -617,7 +605,7 @@ export function AxisNowRulesPage({
   );
 }
 
-function poolText(pool?: Record<string, unknown>) {
+function formatPoolText(pool?: Record<string, unknown>) {
   return pool ? JSON.stringify(pool, null, 2) : "";
 }
 
@@ -782,7 +770,7 @@ function AutomationPoolEditor({
       ? (options?.tags ?? [])
       : [];
   const updateSimple = (type: PoolType, values: string[]) =>
-    onChange(poolText(simpleAutomationPool(type, values)));
+    onChange(formatPoolText(simpleAutomationPool(type, values)));
 
   return (
     <Field data-invalid={invalid || undefined}>
@@ -875,225 +863,6 @@ function unixDateTime(value: number) {
   return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", { hour12: false });
 }
 
-function RuleAutomationDialog({
-  trigger,
-  accountId,
-  domain,
-  rule,
-  options,
-}: {
-  trigger: React.ReactElement;
-  accountId: number;
-  domain?: AxisNowDomain;
-  rule: AxisNowRule;
-  options?: AxisNowRuleOptions;
-}) {
-  const [open, setOpen] = useState(false);
-  const [tideEnabled, setTideEnabled] = useState(false);
-  const [tideStart, setTideStart] = useState("09:00");
-  const [tideEnd, setTideEnd] = useState("18:00");
-  const [tidePool, setTidePool] = useState("");
-  const [failoverEnabled, setFailoverEnabled] = useState(false);
-  const [failoverPool, setFailoverPool] = useState("");
-  const [failureThreshold, setFailureThreshold] = useState(3);
-  const [checkIntervalMinutes, setCheckIntervalMinutes] = useState(5);
-  const automation = useQuery({
-    queryKey: ["axisnow-rule-automation", accountId, rule.uuid],
-    queryFn: async () => (
-      await apiGet<DataResponse<AxisNowRuleAutomation>>(
-        `/api/web/v1/axisnow/accounts/${accountId}/domains/${domain?.uuid}/rules/${rule.uuid}/automation`,
-      )
-    ).data,
-    enabled: open && Boolean(domain?.uuid),
-  });
-  const save = useApiMutation<Record<string, unknown>, DataResponse<OperationResult>>({
-    mutationFn: (body) => apiPut(
-      `/api/web/v1/axisnow/accounts/${accountId}/domains/${domain?.uuid}/rules/${rule.uuid}/automation`,
-      body,
-    ),
-    successMessage: "自动调度配置已保存",
-    invalidate: [
-      ["axisnow-rules", accountId, domain?.uuid],
-      ["axisnow-rule-automation", accountId, rule.uuid],
-    ],
-  });
-  const restore = useApiMutation<void, DataResponse<OperationResult>>({
-    mutationFn: () => apiPost(
-      `/api/web/v1/axisnow/accounts/${accountId}/domains/${domain?.uuid}/rules/${rule.uuid}/automation/restore`,
-    ),
-    successMessage: "已恢复主地址池并重新布防",
-    invalidate: [
-      ["axisnow-rules", accountId, domain?.uuid],
-      ["axisnow-rule-automation", accountId, rule.uuid],
-    ],
-  });
-
-  useEffect(() => {
-    if (!open || !automation.data) return;
-    const current = automation.data;
-    setTideEnabled(current.tideEnabled);
-    setTideStart(current.tideStart || "09:00");
-    setTideEnd(current.tideEnd || "18:00");
-    setTidePool(poolText(current.tidePool));
-    setFailoverEnabled(current.failoverEnabled);
-    setFailoverPool(poolText(current.failoverPool));
-    setFailureThreshold(current.failureThreshold || 3);
-    setCheckIntervalMinutes(current.checkIntervalMinutes || 5);
-  }, [automation.data, open]);
-
-  const tideParsed = parsePoolText(tidePool);
-  const failoverParsed = parsePoolText(failoverPool);
-  const tidePoolInvalid = tideEnabled && !automationPoolIsValid(tideParsed, domain?.recordType);
-  const failoverPoolInvalid = failoverEnabled && !automationPoolIsValid(failoverParsed, domain?.recordType);
-  const switched = automation.data?.failoverState === "switched";
-  const hasError = tidePoolInvalid || failoverPoolInvalid || (failoverEnabled && !automation.data?.hasProbeTemplate);
-  const submit = () => {
-    if (hasError) return;
-    save.mutate({
-      tideEnabled: tideEnabled,
-      tideStart,
-      tideEnd,
-      tidePool: tideParsed,
-      failoverEnabled,
-      failoverPool: failoverParsed,
-      failureThreshold,
-      checkIntervalMinutes,
-    }, { onSuccess: () => setOpen(false) });
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={trigger} />
-      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-3xl">
-        <form onSubmit={(event) => { event.preventDefault(); submit(); }}>
-          <DialogHeader>
-            <DialogTitle>AxisNow 自动调度</DialogTitle>
-            <DialogDescription>{rule.geoIspName} · {domain?.domain ?? "调度域名"}</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-5 py-5">
-            {automation.isError ? <QueryError error={automation.error} retry={() => void automation.refetch()} /> : null}
-            {automation.data?.failoverState === "switched" ? (
-              <Alert variant="destructive">
-                <RotateCcwIcon />
-                <AlertTitle>故障备份地址池已生效</AlertTitle>
-                <AlertDescription>系统不会自动回切。确认主地址池已恢复后，使用下方“恢复并重新布防”。</AlertDescription>
-              </Alert>
-            ) : null}
-            {automation.data ? (
-              <Alert>
-                <Clock3Icon />
-                <AlertTitle>当前状态：{automationStateName(automation.data.activePool)}</AlertTitle>
-                <AlertDescription>
-                  {automation.data.lastHealthState ? `最近探测：${healthStateName(automation.data.lastHealthState)}。` : "尚无探测结果。"}
-                  {automation.data.lastCheckAt ? ` 最后检查：${unixDateTime(automation.data.lastCheckAt)}。` : ""}
-                  {automation.data.lastSwitchAt ? ` 最近切换：${unixDateTime(automation.data.lastSwitchAt)}。` : ""}
-                  {automation.data.lastError ? ` ${automation.data.lastError}` : ""}
-                </AlertDescription>
-              </Alert>
-            ) : null}
-            {automation.data?.hasProbeTemplate ? (
-              <Field>
-                <FieldLabel>地址监控探测</FieldLabel>
-                <FieldDescription>
-                  {options?.probeTemplates.find((item) => item.uuid === automation.data?.probeTemplateUuid)?.name ?? "已配置地址监控模板"}
-                  {` · ${healthStateName(automation.data.probeState)}`}
-                </FieldDescription>
-                <ProbeStatusSummary statuses={automation.data.probeStatuses} />
-              </Field>
-            ) : null}
-            <Field>
-              <FieldLabel>主地址池（只读快照）</FieldLabel>
-              <PoolSummary pool={automation.data?.primaryPool} options={options} />
-              <FieldDescription>规则本身的地址池会在保存规则时同步为新的主地址池。</FieldDescription>
-            </Field>
-            <Field orientation="horizontal">
-              <FieldContent>
-                <FieldTitle>启用潮汐调度</FieldTitle>
-                <FieldDescription>每天在指定时间范围内切换到另一套预留地址池，跨午夜时间段同样有效。</FieldDescription>
-              </FieldContent>
-              <Switch checked={tideEnabled} onCheckedChange={setTideEnabled} />
-            </Field>
-            {tideEnabled ? (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor={`axisnow-tide-start-${rule.uuid}`}>开始时间</FieldLabel>
-                  <Input id={`axisnow-tide-start-${rule.uuid}`} type="time" value={tideStart} onChange={(event) => setTideStart(event.target.value)} />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor={`axisnow-tide-end-${rule.uuid}`}>结束时间</FieldLabel>
-                  <Input id={`axisnow-tide-end-${rule.uuid}`} type="time" value={tideEnd} onChange={(event) => setTideEnd(event.target.value)} />
-                </Field>
-              </div>
-            ) : null}
-            <AutomationPoolEditor
-              idPrefix={`axisnow-tide-pool-${rule.uuid}`}
-              label="潮汐地址池"
-              recordType={domain?.recordType}
-              options={options}
-              value={tidePool}
-              invalid={tidePoolInvalid}
-              onChange={setTidePool}
-            />
-            {tidePoolInvalid ? <p className="text-sm text-destructive">请配置有效且非空的潮汐地址池。</p> : null}
-            {domain?.recordType === "A" ? (
-              <>
-                <Field orientation="horizontal">
-                  <FieldContent>
-                    <FieldTitle>启用故障备份调度</FieldTitle>
-                    <FieldDescription>只有所有候选 IP 都明确探测失败且连续达到阈值时才切换，空数据不会触发。</FieldDescription>
-                  </FieldContent>
-                  <Switch checked={failoverEnabled} onCheckedChange={setFailoverEnabled} />
-                </Field>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field>
-                    <FieldLabel htmlFor={`axisnow-failure-threshold-${rule.uuid}`}>连续失败阈值</FieldLabel>
-                    <Input id={`axisnow-failure-threshold-${rule.uuid}`} type="number" min={1} max={10} value={failureThreshold} onChange={(event) => setFailureThreshold(Number(event.target.value))} />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor={`axisnow-check-interval-${rule.uuid}`}>检查间隔（分钟）</FieldLabel>
-                    <Input id={`axisnow-check-interval-${rule.uuid}`} type="number" min={1} max={60} value={checkIntervalMinutes} onChange={(event) => setCheckIntervalMinutes(Number(event.target.value))} />
-                  </Field>
-                </div>
-                <AutomationPoolEditor
-                  idPrefix={`axisnow-failover-pool-${rule.uuid}`}
-                  label="故障备份地址池"
-                  recordType={domain?.recordType}
-                  options={options}
-                  value={failoverPool}
-                  invalid={failoverPoolInvalid}
-                  onChange={setFailoverPool}
-                />
-                {failoverPoolInvalid ? <p className="text-sm text-destructive">请配置有效且非空的故障备份地址池。</p> : null}
-                {failoverEnabled && automation.data && !automation.data.hasProbeTemplate ? (
-                  <Alert variant="destructive">
-                    <AlertTitle>尚未配置地址监控模板</AlertTitle>
-                    <AlertDescription>请先在路由规则编辑中选择地址监控模板，再启用故障备份调度。</AlertDescription>
-                  </Alert>
-                ) : null}
-              </>
-            ) : null}
-            {automation.data?.logs.length ? (
-              <Field>
-                <FieldLabel>最近执行记录</FieldLabel>
-                <ScrollArea className="h-56 rounded-md border">
-                  <Table>
-                    <TableHeader><TableRow><TableHead>时间</TableHead><TableHead>动作</TableHead><TableHead>状态</TableHead><TableHead>说明</TableHead></TableRow></TableHeader>
-                    <TableBody>{automation.data.logs.map((log) => <TableRow key={log.id}><TableCell>{log.createdAt ?? "—"}</TableCell><TableCell>{log.action}</TableCell><TableCell><Badge variant={log.status === "success" ? "secondary" : log.status === "failed" ? "destructive" : "outline"}>{log.status === "success" ? "成功" : log.status === "failed" ? "失败" : "未知"}</Badge></TableCell><TableCell className="whitespace-normal">{log.message || "—"}</TableCell></TableRow>)}</TableBody>
-                  </Table>
-                </ScrollArea>
-              </Field>
-            ) : null}
-          </div>
-          <DialogFooter>
-            {switched ? <ConfirmAction trigger={<Button type="button" variant="outline"><RotateCcwIcon data-icon="inline-start" />恢复并重新布防</Button>} title="恢复主地址池并重新布防？" description="这会立即将当前规则切回主地址池，并重新开始故障探测。" pending={restore.isPending} onConfirm={() => restore.mutate(undefined, { onSuccess: () => setOpen(false) })} /> : null}
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>取消</Button>
-            <Button type="submit" disabled={save.isPending || automation.isPending || hasError}>{save.isPending ? <Spinner data-icon="inline-start" /> : <Clock3Icon data-icon="inline-start" />}保存配置</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 function recordValue(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -1122,7 +891,6 @@ function RuleDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [geoIsp, setGeoIsp] = useState("default");
-  const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<"active" | "paused">("active");
   const [poolType, setPoolType] = useState<PoolType>("all_valid_eips");
@@ -1134,6 +902,15 @@ function RuleDialog({
   const [triggerInterval, setTriggerInterval] = useState<5 | 10>(5);
   const [ttl, setTtl] = useState(0);
   const [probeUuid, setProbeUuid] = useState("");
+  const [tideEnabled, setTideEnabled] = useState(false);
+  const [tideStart, setTideStart] = useState("09:00");
+  const [tideEnd, setTideEnd] = useState("18:00");
+  const [tidePool, setTidePool] = useState("");
+  const [failoverEnabled, setFailoverEnabled] = useState(false);
+  const [failoverPool, setFailoverPool] = useState("");
+  const [failureThreshold, setFailureThreshold] = useState(3);
+  const [checkIntervalMinutes, setCheckIntervalMinutes] = useState(5);
+  const [automationDirty, setAutomationDirty] = useState(false);
   const detail = useQuery({
     queryKey: ["axisnow-rule", accountId, domain?.uuid, rule?.uuid],
     queryFn: async () =>
@@ -1142,6 +919,15 @@ function RuleDialog({
           `/api/web/v1/axisnow/accounts/${accountId}/domains/${domain?.uuid}/rules/${rule?.uuid}`,
         )
       ).data,
+    enabled: open && Boolean(rule && domain),
+  });
+  const automation = useQuery({
+    queryKey: ["axisnow-rule-automation", accountId, rule?.uuid],
+    queryFn: async () => (
+      await apiGet<DataResponse<AxisNowRuleAutomation>>(
+        `/api/web/v1/axisnow/accounts/${accountId}/domains/${domain?.uuid}/rules/${rule?.uuid}/automation`,
+      )
+    ).data,
     enabled: open && Boolean(rule && domain),
   });
   const save = useApiMutation<
@@ -1164,11 +950,31 @@ function RuleDialog({
       ["axisnow-domains"],
     ],
   });
+  const automationSave = useApiMutation<Record<string, unknown>, DataResponse<OperationResult>>({
+    mutationFn: (body) => apiPut(
+      `/api/web/v1/axisnow/accounts/${accountId}/domains/${domain?.uuid}/rules/${rule?.uuid}/automation`,
+      body,
+    ),
+    successMessage: "自动调度配置已保存",
+    invalidate: [
+      ["axisnow-rules", accountId, domain?.uuid],
+      ["axisnow-rule-automation", accountId, rule?.uuid],
+    ],
+  });
+  const restore = useApiMutation<void, DataResponse<OperationResult>>({
+    mutationFn: () => apiPost(
+      `/api/web/v1/axisnow/accounts/${accountId}/domains/${domain?.uuid}/rules/${rule?.uuid}/automation/restore`,
+    ),
+    successMessage: "已恢复主地址池并重新布防",
+    invalidate: [
+      ["axisnow-rules", accountId, domain?.uuid],
+      ["axisnow-rule-automation", accountId, rule?.uuid],
+    ],
+  });
 
   useEffect(() => {
     if (!open) return;
     setGeoIsp("default");
-    setName("");
     setDescription("");
     setStatus("active");
     setPoolType(domain?.recordType === "CNAME" ? "domain" : "all_valid_eips");
@@ -1180,6 +986,15 @@ function RuleDialog({
     setTriggerInterval(5);
     setTtl(0);
     setProbeUuid("");
+    setTideEnabled(false);
+    setTideStart("09:00");
+    setTideEnd("18:00");
+    setTidePool("");
+    setFailoverEnabled(false);
+    setFailoverPool("");
+    setFailureThreshold(3);
+    setCheckIntervalMinutes(5);
+    setAutomationDirty(false);
   }, [domain?.recordType, open]);
 
   useEffect(() => {
@@ -1198,7 +1013,6 @@ function RuleDialog({
     const response = recordValue(conf.response_strategy);
     const ttlConf = recordValue(conf.ttl_conf);
     setGeoIsp(current.geoIsp || "default");
-    setName(current.name ?? "");
     setDescription(current.description ?? "");
     setStatus(current.status);
     setPoolType(detectedType);
@@ -1210,7 +1024,21 @@ function RuleDialog({
     setTriggerInterval(Number(response.trigger_interval) === 10 ? 10 : 5);
     setTtl(Number(ttlConf.ttl ?? 0));
     setProbeUuid(stringArray(conf.edge_probe_template_uuid)[0] ?? "");
-  }, [detail.data]);
+  }, [detail.data, open]);
+
+  useEffect(() => {
+    if (!open || !automation.data) return;
+    const current = automation.data;
+    setTideEnabled(current.tideEnabled);
+    setTideStart(current.tideStart || "09:00");
+    setTideEnd(current.tideEnd || "18:00");
+    setTidePool(formatPoolText(current.tidePool));
+    setFailoverEnabled(current.failoverEnabled);
+    setFailoverPool(formatPoolText(current.failoverPool));
+    setFailureThreshold(current.failureThreshold || 3);
+    setCheckIntervalMinutes(current.checkIntervalMinutes || 5);
+    setAutomationDirty(false);
+  }, [automation.data, open]);
 
   const selectablePool =
     poolType === "eip"
@@ -1237,6 +1065,13 @@ function RuleDialog({
         poolType === "all_valid_eips" ||
         poolValueList.length),
   );
+  const tideParsed = parsePoolText(tidePool);
+  const failoverParsed = parsePoolText(failoverPool);
+  const tidePoolInvalid = tideEnabled && !automationPoolIsValid(tideParsed, domain?.recordType);
+  const failoverPoolInvalid = failoverEnabled && !automationPoolIsValid(failoverParsed, domain?.recordType);
+  const switched = automation.data?.failoverState === "switched";
+  const automationHasError = tidePoolInvalid || failoverPoolInvalid || (failoverEnabled && !automation.data?.hasProbeTemplate);
+  const shouldSaveAutomation = Boolean(rule && (automationDirty || automation.data?.configured));
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -1248,7 +1083,6 @@ function RuleDialog({
             save.mutate(
               {
                 geoIsp,
-                name: name || null,
                 description: description || null,
                 status,
                 poolType,
@@ -1260,7 +1094,27 @@ function RuleDialog({
                 ttl,
                 edgeProbeTemplateUuid: probeUuid || null,
               },
-              { onSuccess: () => setOpen(false) },
+              {
+                onSuccess: () => {
+                  if (!shouldSaveAutomation) {
+                    setOpen(false);
+                    return;
+                  }
+                  automationSave.mutate(
+                    {
+                      tideEnabled,
+                      tideStart,
+                      tideEnd,
+                      tidePool: tideParsed,
+                      failoverEnabled,
+                      failoverPool: failoverParsed,
+                      failureThreshold,
+                      checkIntervalMinutes,
+                    },
+                    { onSuccess: () => setOpen(false) },
+                  );
+                },
+              },
             );
           }}
         >
@@ -1282,7 +1136,7 @@ function RuleDialog({
                   <Select
                     items={(options?.geoIspOptions ?? []).map((item) => ({
                       value: item.value,
-                      label: `${"　".repeat(item.depth)}${item.name}`,
+                      label: item.name,
                       disabled: item.disabled,
                     }))}
                     value={geoIsp}
@@ -1309,15 +1163,6 @@ function RuleDialog({
                 </Field>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="axisnow-rule-name">规则名称</FieldLabel>
-                  <Input
-                    id="axisnow-rule-name"
-                    value={name}
-                    maxLength={100}
-                    onChange={(event) => setName(event.target.value)}
-                  />
-                </Field>
                 <Field>
                   <FieldLabel>生效状态</FieldLabel>
                   <Select
@@ -1583,6 +1428,123 @@ function RuleDialog({
                 </Field>
               </div>
             </FieldGroup>
+            {rule ? (
+              <div className="mt-6 flex flex-col gap-5 border-t pt-5">
+                <div>
+                  <h3 className="flex items-center gap-2 text-base font-medium">
+                    <Clock3Icon className="size-4" />自动调度
+                  </h3>
+                  <p className="text-sm text-muted-foreground">在当前路由规则中配置潮汐和故障备份调度。</p>
+                </div>
+                {automation.isError ? <QueryError error={automation.error} retry={() => void automation.refetch()} /> : null}
+                {switched ? (
+                  <Alert variant="destructive">
+                    <RotateCcwIcon />
+                    <AlertTitle>故障备份地址池已生效</AlertTitle>
+                    <AlertDescription>系统不会自动回切。确认主地址池已恢复后，可使用下方按钮重新布防。</AlertDescription>
+                  </Alert>
+                ) : null}
+                {automation.data ? (
+                  <Alert>
+                    <Clock3Icon />
+                    <AlertTitle>当前状态：{automationStateName(automation.data.activePool)}</AlertTitle>
+                    <AlertDescription>
+                      {automation.data.lastHealthState ? `最近探测：${healthStateName(automation.data.lastHealthState)}。` : "尚无探测结果。"}
+                      {automation.data.lastCheckAt ? ` 最后检查：${unixDateTime(automation.data.lastCheckAt)}。` : ""}
+                      {automation.data.lastSwitchAt ? ` 最近切换：${unixDateTime(automation.data.lastSwitchAt)}。` : ""}
+                      {automation.data.lastError ? ` ${automation.data.lastError}` : ""}
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+                {automation.data?.hasProbeTemplate ? (
+                  <Field>
+                    <FieldLabel>地址监控探测</FieldLabel>
+                    <FieldDescription>
+                      {options?.probeTemplates.find((item) => item.uuid === automation.data?.probeTemplateUuid)?.name ?? "已配置地址监控模板"}
+                      {` · ${healthStateName(automation.data.probeState)}`}
+                    </FieldDescription>
+                    <ProbeStatusSummary statuses={automation.data.probeStatuses} />
+                  </Field>
+                ) : null}
+                <Field>
+                  <FieldLabel>主地址池（只读快照）</FieldLabel>
+                  <PoolSummary pool={automation.data?.primaryPool} options={options} />
+                  <FieldDescription>保存规则时，主地址池会同步为上方配置的地址池。</FieldDescription>
+                </Field>
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldTitle>启用潮汐调度</FieldTitle>
+                    <FieldDescription>在指定时间范围内切换到另一套预留地址池。</FieldDescription>
+                  </FieldContent>
+                  <Switch checked={tideEnabled} onCheckedChange={(value) => { setTideEnabled(value); setAutomationDirty(true); }} />
+                </Field>
+                {tideEnabled ? (
+                  <>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field>
+                        <FieldLabel htmlFor={`axisnow-tide-start-${rule.uuid}`}>开始时间</FieldLabel>
+                        <Input id={`axisnow-tide-start-${rule.uuid}`} type="time" value={tideStart} onChange={(event) => { setTideStart(event.target.value); setAutomationDirty(true); }} />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor={`axisnow-tide-end-${rule.uuid}`}>结束时间</FieldLabel>
+                        <Input id={`axisnow-tide-end-${rule.uuid}`} type="time" value={tideEnd} onChange={(event) => { setTideEnd(event.target.value); setAutomationDirty(true); }} />
+                      </Field>
+                    </div>
+                    <AutomationPoolEditor
+                      idPrefix={`axisnow-tide-pool-${rule.uuid}`}
+                      label="潮汐地址池"
+                      recordType={domain?.recordType}
+                      options={options}
+                      value={tidePool}
+                      invalid={tidePoolInvalid}
+                      onChange={(value) => { setTidePool(value); setAutomationDirty(true); }}
+                    />
+                    {tidePoolInvalid ? <p className="text-sm text-destructive">请配置有效且非空的潮汐地址池。</p> : null}
+                  </>
+                ) : null}
+                {domain?.recordType === "A" ? (
+                  <>
+                    <Field orientation="horizontal">
+                      <FieldContent>
+                        <FieldTitle>启用故障备份调度</FieldTitle>
+                        <FieldDescription>只有所有候选 IP 都明确探测失败且连续达到阈值时才会切换。</FieldDescription>
+                      </FieldContent>
+                      <Switch checked={failoverEnabled} onCheckedChange={(value) => { setFailoverEnabled(value); setAutomationDirty(true); }} />
+                    </Field>
+                    {failoverEnabled ? (
+                      <>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <Field>
+                            <FieldLabel htmlFor={`axisnow-failure-threshold-${rule.uuid}`}>连续失败阈值</FieldLabel>
+                            <Input id={`axisnow-failure-threshold-${rule.uuid}`} type="number" min={1} max={10} value={failureThreshold} onChange={(event) => { setFailureThreshold(Number(event.target.value)); setAutomationDirty(true); }} />
+                          </Field>
+                          <Field>
+                            <FieldLabel htmlFor={`axisnow-check-interval-${rule.uuid}`}>检查间隔（分钟）</FieldLabel>
+                            <Input id={`axisnow-check-interval-${rule.uuid}`} type="number" min={1} max={60} value={checkIntervalMinutes} onChange={(event) => { setCheckIntervalMinutes(Number(event.target.value)); setAutomationDirty(true); }} />
+                          </Field>
+                        </div>
+                        <AutomationPoolEditor
+                          idPrefix={`axisnow-failover-pool-${rule.uuid}`}
+                          label="故障备份地址池"
+                          recordType={domain?.recordType}
+                          options={options}
+                          value={failoverPool}
+                          invalid={failoverPoolInvalid}
+                          onChange={(value) => { setFailoverPool(value); setAutomationDirty(true); }}
+                        />
+                        {failoverPoolInvalid ? <p className="text-sm text-destructive">请配置有效且非空的故障备份地址池。</p> : null}
+                        {!automation.data?.hasProbeTemplate ? (
+                          <Alert variant="destructive">
+                            <AlertTitle>尚未配置地址监控模板</AlertTitle>
+                            <AlertDescription>请先在上方选择地址监控模板，再启用故障备份调度。</AlertDescription>
+                          </Alert>
+                        ) : null}
+                      </>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+            ) : null}
             {detail.isError ? (
               <QueryError
                 error={detail.error}
@@ -1591,6 +1553,15 @@ function RuleDialog({
             ) : null}
           </div>
           <DialogFooter>
+            {rule && switched ? (
+              <ConfirmAction
+                trigger={<Button type="button" variant="outline"><RotateCcwIcon data-icon="inline-start" />恢复并重新布防</Button>}
+                title="恢复主地址池并重新布防"
+                description="这会立即将当前规则切回主地址池，并重新开始故障探测。"
+                pending={restore.isPending}
+                onConfirm={() => restore.mutate(undefined)}
+              />
+            ) : null}
             <Button
               type="button"
               variant="outline"
@@ -1598,8 +1569,8 @@ function RuleDialog({
             >
               取消
             </Button>
-            <Button type="submit" disabled={save.isPending || !canSubmit}>
-              {save.isPending ? <Spinner data-icon="inline-start" /> : null}确认
+            <Button type="submit" disabled={save.isPending || automationSave.isPending || automation.isPending || !canSubmit || (Boolean(rule) && !automation.data) || automationHasError}>
+              {save.isPending || automationSave.isPending ? <Spinner data-icon="inline-start" /> : null}确认
             </Button>
           </DialogFooter>
         </form>
