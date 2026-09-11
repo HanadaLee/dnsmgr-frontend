@@ -5,7 +5,6 @@ import {
   Clock3Icon,
   CirclePauseIcon,
   CirclePlayIcon,
-  CodeXmlIcon,
   MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
@@ -269,7 +268,47 @@ function healthStateName(value?: string) {
     partial: "部分可用",
     all_failed: "全部失败",
     no_data: "无数据",
+    not_configured: "未配置",
   }[value ?? ""] ?? value ?? "—";
+}
+
+function probeStatusName(value?: string) {
+  return {
+    available: "正常",
+    unavailable: "不可用",
+    pending: "探测中",
+    no_data: "无数据",
+  }[value?.toLowerCase() ?? ""] ?? value ?? "未知";
+}
+
+function probeStatusVariant(value?: string): "default" | "secondary" | "destructive" | "outline" {
+  switch (value?.toLowerCase()) {
+    case "available": return "secondary";
+    case "unavailable": return "destructive";
+    default: return "outline";
+  }
+}
+
+function RuleProbeCell({ rule, options }: { rule: AxisNowRule; options?: AxisNowRuleOptions }) {
+  if (!rule.probeTemplateUuid) return <span className="text-muted-foreground">未配置</span>;
+  const template = options?.probeTemplates.find((item) => item.uuid === rule.probeTemplateUuid);
+  const available = rule.probeStatuses.filter((item) => item.status === "available").length;
+  const unavailable = rule.probeStatuses.filter((item) => item.status === "unavailable").length;
+  return (
+    <div className="flex min-w-40 flex-col items-start gap-1.5">
+      <span className="max-w-48 truncate text-sm" title={template?.name ?? rule.probeTemplateUuid}>
+        {template?.name ?? "已配置探测模板"}
+      </span>
+      <Badge variant={rule.probeState === "healthy" ? "secondary" : rule.probeState === "all_failed" ? "destructive" : "outline"}>
+        {healthStateName(rule.probeState)}
+      </Badge>
+      {rule.probeStatuses.length ? (
+        <span className="text-xs text-muted-foreground">
+          正常 {available} · 不可用 {unavailable} · 共 {rule.probeStatuses.length}
+        </span>
+      ) : <span className="text-xs text-muted-foreground">尚无探测结果</span>}
+    </div>
+  );
 }
 
 function RuleAutomationCell({ rule }: { rule: AxisNowRule }) {
@@ -381,6 +420,11 @@ export function AxisNowRulesPage({
       key: "resolved",
       label: "解析地址 / 最后更新时间",
       render: (rule) => <RuleResolvedCell rule={rule} />,
+    },
+    {
+      key: "probe",
+      label: "探测状态",
+      render: (rule) => <RuleProbeCell rule={rule} options={options.data} />,
     },
     {
       key: "automation",
@@ -623,6 +667,80 @@ function simpleAutomationPool(type: PoolType, values: string[]) {
   };
 }
 
+function poolTypeName(type: string) {
+  return {
+    all_valid_eips: "全部有效 EIP",
+    eip_tag: "EIP 标签",
+    eip: "指定 EIP",
+    ip: "自定义 IP",
+    domain: "CNAME 候选域名",
+  }[type] ?? "地址组";
+}
+
+function poolGroupItems(group: Record<string, unknown>, options?: AxisNowRuleOptions) {
+  const type = String(group.type ?? "");
+  const values = stringArray(group.eip_uuids ?? group.tag_uuids ?? group.ips ?? group.domains);
+  if (type === "eip" || type === "eip_tag") {
+    const source = type === "eip" ? options?.eips : options?.tags;
+    return values.map((value) => source?.find((item) => item.uuid === value)?.name ?? value);
+  }
+  return values;
+}
+
+function PoolSummary({ pool, options }: { pool?: Record<string, unknown> | null; options?: AxisNowRuleOptions }) {
+  if (!pool) return <p className="text-sm text-muted-foreground">未配置地址池</p>;
+  if (pool.mode === "all_valid_eips") {
+    return (
+      <div className="rounded-md border bg-muted/30 p-3 text-sm">
+        <Badge variant="secondary">全部有效 EIP</Badge>
+        <p className="mt-2 text-muted-foreground">由 AxisNow 自动使用当前账户中所有有效 EIP。</p>
+      </div>
+    );
+  }
+  const groups = Array.isArray(pool.groups) ? pool.groups.map(recordValue) : [];
+  if (!groups.length) return <p className="text-sm text-muted-foreground">未配置地址组</p>;
+  return (
+    <div className="flex flex-col gap-2 rounded-md border bg-muted/30 p-3">
+      {groups.map((group, index) => {
+        const type = String(group.type ?? "");
+        const items = poolGroupItems(group, options);
+        return (
+          <div key={`${type}-${index}`} className="flex flex-col gap-1.5 text-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">地址组 {index + 1} · {poolTypeName(type)}</Badge>
+              <span className="text-xs text-muted-foreground">{items.length} 项</span>
+            </div>
+            {items.length ? (
+              <div className="flex flex-wrap gap-1.5">
+                {items.map((item) => <Badge key={item} variant="outline">{item}</Badge>)}
+              </div>
+            ) : <span className="text-xs text-muted-foreground">暂无条目</span>}
+          </div>
+        );
+      })}
+      {groups.length > 1 ? (
+        <p className="text-xs text-muted-foreground">这套地址池包含多个地址组，页面会保留原有组合。</p>
+      ) : null}
+    </div>
+  );
+}
+
+function ProbeStatusSummary({ statuses }: { statuses: AxisNowRuleAutomation["probeStatuses"] }) {
+  if (!statuses.length) return <p className="text-sm text-muted-foreground">尚无探测结果。</p>;
+  return (
+    <div className="flex flex-col gap-2 rounded-md border bg-muted/30 p-3">
+      <div className="flex flex-wrap gap-2">
+        {statuses.map((item) => (
+          <Badge key={item.address} variant={probeStatusVariant(item.status)}>
+            {item.address} · {probeStatusName(item.status)}
+            {item.avgConnectLatency !== undefined ? ` · ${item.avgConnectLatency} ms` : ""}
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AutomationPoolEditor({
   idPrefix,
   label,
@@ -640,7 +758,6 @@ function AutomationPoolEditor({
   invalid: boolean;
   onChange: (value: string) => void;
 }) {
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const pool = parsePoolText(value);
   const groups = pool && Array.isArray(pool.groups)
     ? pool.groups.map(recordValue)
@@ -664,7 +781,6 @@ function AutomationPoolEditor({
     : poolType === "eip_tag"
       ? (options?.tags ?? [])
       : [];
-  const advancedVisible = showAdvanced || groups.length > 1;
   const updateSimple = (type: PoolType, values: string[]) =>
     onChange(poolText(simpleAutomationPool(type, values)));
 
@@ -684,7 +800,6 @@ function AutomationPoolEditor({
         onValueChange={(nextValue) => {
           if (!nextValue) return;
           updateSimple(nextValue as PoolType, []);
-          setShowAdvanced(false);
         }}
       >
         <SelectTrigger className="w-full" aria-invalid={invalid || undefined}>
@@ -746,29 +861,9 @@ function AutomationPoolEditor({
           placeholder={poolType === "domain" ? "每行一个候选域名" : "每行一个 IP"}
         />
       ) : null}
-      <div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => setShowAdvanced((current) => !current)}
-        >
-          <CodeXmlIcon data-icon="inline-start" />
-          高级地址池 JSON
-        </Button>
-        {advancedVisible ? (
-          <Textarea
-            id={`${idPrefix}-advanced`}
-            className="mt-3 min-h-36 font-mono text-xs"
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-            aria-invalid={invalid || undefined}
-            placeholder={'{"mode":"customize","groups":[...]}' }
-          />
-        ) : null}
-      </div>
+      {groups.length > 1 ? <PoolSummary pool={pool} options={options} /> : null}
       <FieldDescription>
-        先在 dnsmgr 中预留这套地址池；多地址组可用高级 JSON 编辑。
+        先在 dnsmgr 中预留这套地址池；已有多地址组会按原组合保留。
       </FieldDescription>
     </Field>
   );
@@ -896,9 +991,19 @@ function RuleAutomationDialog({
                 </AlertDescription>
               </Alert>
             ) : null}
+            {automation.data?.hasProbeTemplate ? (
+              <Field>
+                <FieldLabel>地址监控探测</FieldLabel>
+                <FieldDescription>
+                  {options?.probeTemplates.find((item) => item.uuid === automation.data?.probeTemplateUuid)?.name ?? "已配置地址监控模板"}
+                  {` · ${healthStateName(automation.data.probeState)}`}
+                </FieldDescription>
+                <ProbeStatusSummary statuses={automation.data.probeStatuses} />
+              </Field>
+            ) : null}
             <Field>
               <FieldLabel>主地址池（只读快照）</FieldLabel>
-              <Textarea className="min-h-28 font-mono text-xs" value={poolText(automation.data?.primaryPool)} readOnly />
+              <PoolSummary pool={automation.data?.primaryPool} options={options} />
               <FieldDescription>规则本身的地址池会在保存规则时同步为新的主地址池。</FieldDescription>
             </Field>
             <Field orientation="horizontal">
@@ -1024,7 +1129,6 @@ function RuleDialog({
   const [poolValues, setPoolValues] = useState<Set<string>>(new Set());
   const [poolText, setPoolText] = useState("");
   const [advancedPool, setAdvancedPool] = useState("");
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [strategy, setStrategy] = useState<Strategy>("random");
   const [quantity, setQuantity] = useState(1);
   const [triggerInterval, setTriggerInterval] = useState<5 | 10>(5);
@@ -1071,7 +1175,6 @@ function RuleDialog({
     setPoolValues(new Set());
     setPoolText("");
     setAdvancedPool("");
-    setShowAdvanced(false);
     setStrategy("random");
     setQuantity(1);
     setTriggerInterval(5);
@@ -1102,7 +1205,6 @@ function RuleDialog({
     setPoolValues(new Set(stringArray(group.eip_uuids ?? group.tag_uuids)));
     setPoolText(stringArray(group.ips ?? group.domains).join("\n"));
     setAdvancedPool(groups.length > 1 ? JSON.stringify(pool, null, 2) : "");
-    setShowAdvanced(groups.length > 1);
     setStrategy((response.election_strategy ?? "random") as Strategy);
     setQuantity(Number(response.ip_quantity ?? response.addr_quantity ?? 1));
     setTriggerInterval(Number(response.trigger_interval) === 10 ? 10 : 5);
@@ -1268,6 +1370,7 @@ function RuleDialog({
                     setPoolType(next);
                     setPoolValues(new Set());
                     setPoolText("");
+                    setAdvancedPool("");
                     if (
                       strategy === "priority_order" &&
                       next === "all_valid_eips"
@@ -1316,6 +1419,7 @@ function RuleDialog({
                                 if (checked) next.add(option.uuid);
                                 else next.delete(option.uuid);
                                 setPoolValues(next);
+                                setAdvancedPool("");
                               }}
                             />
                             <FieldTitle>{option.name}</FieldTitle>
@@ -1339,40 +1443,23 @@ function RuleDialog({
                     id="axisnow-rule-pool-text"
                     rows={5}
                     value={poolText}
-                    onChange={(event) => setPoolText(event.target.value)}
+                    onChange={(event) => {
+                      setPoolText(event.target.value);
+                      setAdvancedPool("");
+                    }}
                     placeholder="每行一个"
                   />
                 </Field>
               ) : null}
-              <div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowAdvanced((current) => !current)}
-                >
-                  <CodeXmlIcon data-icon="inline-start" />
-                  高级地址池 JSON
-                </Button>
-                {showAdvanced ? (
-                  <Field className="mt-3">
-                    <FieldLabel htmlFor="axisnow-rule-advanced">
-                      address_pool JSON
-                    </FieldLabel>
-                    <Textarea
-                      id="axisnow-rule-advanced"
-                      className="font-mono"
-                      rows={6}
-                      value={advancedPool}
-                      onChange={(event) => setAdvancedPool(event.target.value)}
-                    />
-                    <FieldDescription>
-                      多地址组或混合地址池可直接按 AxisNow API 的 address_pool
-                      结构编辑。
-                    </FieldDescription>
-                  </Field>
-                ) : null}
-              </div>
+              {advancedPool.trim() ? (
+                <Field>
+                  <FieldLabel>现有多地址组</FieldLabel>
+                  <PoolSummary pool={parsePoolText(advancedPool)} options={options} />
+                  <FieldDescription>
+                    这是当前规则已经保存的多个地址组；本页面会保留原组合。需要重新组合时，请选择上方的单组地址池重新配置。
+                  </FieldDescription>
+                </Field>
+              ) : null}
               <div className="grid gap-4 sm:grid-cols-3">
                 <Field>
                   <FieldLabel>选取策略</FieldLabel>
