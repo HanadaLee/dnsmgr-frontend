@@ -1070,7 +1070,8 @@ function RuleDialog({
   const tidePoolInvalid = tideEnabled && !automationPoolIsValid(tideParsed, domain?.recordType);
   const failoverPoolInvalid = failoverEnabled && !automationPoolIsValid(failoverParsed, domain?.recordType);
   const switched = automation.data?.failoverState === "switched";
-  const automationHasError = tidePoolInvalid || failoverPoolInvalid || (failoverEnabled && !automation.data?.hasProbeTemplate);
+  const hasProbeTemplate = Boolean(probeUuid || automation.data?.hasProbeTemplate);
+  const automationHasError = tidePoolInvalid || failoverPoolInvalid || (failoverEnabled && !hasProbeTemplate);
   const shouldSaveAutomation = Boolean(rule && (automationDirty || automation.data?.configured));
 
   return (
@@ -1533,7 +1534,7 @@ function RuleDialog({
                           onChange={(value) => { setFailoverPool(value); setAutomationDirty(true); }}
                         />
                         {failoverPoolInvalid ? <p className="text-sm text-destructive">请配置有效且非空的故障备份地址池。</p> : null}
-                        {!automation.data?.hasProbeTemplate ? (
+                        {!hasProbeTemplate ? (
                           <Alert variant="destructive">
                             <AlertTitle>尚未配置地址监控模板</AlertTitle>
                             <AlertDescription>请先在上方选择地址监控模板，再启用故障备份调度。</AlertDescription>
