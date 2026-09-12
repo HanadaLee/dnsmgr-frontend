@@ -5,8 +5,8 @@ const flagIcons = import.meta.glob<string>(
   { eager: true, import: 'default', query: '?url' },
 )
 
-export function CountryFlag({ countryCode, provinceCode, tagNames }: { countryCode?: string; provinceCode?: string; tagNames?: readonly string[] }) {
-  const code = resolveCountryFlagCode({ countryCode, provinceCode, tagNames })
+export function CountryFlag({ countryCode, provinceCode }: { countryCode?: string; provinceCode?: string }) {
+  const code = resolveCountryFlagCode({ countryCode, provinceCode })
   if (!code) return null
   const source = flagIcons[`/node_modules/flag-icons/flags/4x3/${code}.svg`]
   if (!source) return null
