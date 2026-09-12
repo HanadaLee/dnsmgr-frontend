@@ -172,7 +172,7 @@ function RulePoolCell({ rule }: { rule: AxisNowRule }) {
                   <TableRow key={`${item.address}-${index}`}>
                     <TableCell>
                       <div className={`flex items-center gap-2 font-mono ${addressTone(item, resolved.has(addressKey(item.address)))}`}>
-                        <CountryFlag countryCode={item.countryCode} provinceCode={item.provinceCode} />
+                        <CountryFlag countryCode={item.countryCode} provinceCode={item.provinceCode} tagNames={item.tagNames} />
                         <span>{item.address}</span>
                       </div>
                     </TableCell>
@@ -234,7 +234,7 @@ function RuleResolvedCell({ rule }: { rule: AxisNowRule }) {
         <div className="flex flex-col gap-0.5">
           {rule.resolvedAddresses.map((item, index) => (
             <div key={`${item.address}-${index}`} className={`flex items-center justify-between gap-5 font-mono text-sm ${addressTone(item, true)}`}>
-              <span className="flex items-center gap-2"><CountryFlag countryCode={item.countryCode} provinceCode={item.provinceCode} />{item.address}</span>
+              <span className="flex items-center gap-2"><CountryFlag countryCode={item.countryCode} provinceCode={item.provinceCode} tagNames={item.tagNames} />{item.address}</span>
               {item.score !== undefined ? (
                 <span className="tabular-nums">
                   {Number(item.score.toFixed(2))}
