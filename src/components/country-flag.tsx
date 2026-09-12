@@ -9,6 +9,13 @@ const aliases: Record<string, string> = {
   'cn-hkg': 'hk',
   'cn_macao': 'mo',
   'cn-twn': 'tw',
+  'cn-hong-kong': 'hk',
+  'cn-macao': 'mo',
+  'cn-macau': 'mo',
+  'cn-taiwan': 'tw',
+  '810': 'hk',
+  '446': 'mo',
+  '158': 'tw',
   'hong kong': 'hk',
   hongkong: 'hk',
   hkg: 'hk',
@@ -30,11 +37,26 @@ const flagIcons = import.meta.glob<string>(
   { eager: true, import: 'default', query: '?url' },
 )
 
+function normalizeCode(value: string): string {
+  return value.trim().toLowerCase().replace(/[_.\/]+/g, '-').replace(/\s+/g, ' ')
+}
+
+function specialRegionFlag(value?: string): string | undefined {
+  const normalized = normalizeCode(value ?? '')
+  if (!normalized) return undefined
+  const alias = aliases[normalized]
+  if (alias) return alias
+
+  const compact = normalized.replace(/[\s_-]+/g, '')
+  if (compact === 'hk' || compact === 'hkg' || compact === '810' || compact.includes('hongkong') || compact.endsWith('hk')) return 'hk'
+  if (compact === 'mo' || compact === 'mac' || compact === 'macao' || compact === 'macau' || compact === '446' || compact.includes('macao') || compact.includes('macau') || compact.includes('澳门') || compact.endsWith('mo')) return 'mo'
+  if (compact === 'tw' || compact === 'twn' || compact === 'taiwan' || compact === '158' || compact.includes('taiwan') || compact.includes('台湾') || compact.endsWith('tw')) return 'tw'
+  return undefined
+}
+
 export function CountryFlag({ countryCode, provinceCode }: { countryCode?: string; provinceCode?: string }) {
-  const rawCode = countryCode?.trim().toLowerCase() ?? ''
-  const rawProvinceCode = provinceCode?.trim().toLowerCase() ?? ''
-  const provinceAlias = aliases[rawProvinceCode] ?? (['hk', 'mo', 'tw'].includes(rawProvinceCode) ? rawProvinceCode : undefined)
-  const code = provinceAlias ?? aliases[rawCode] ?? rawCode
+  const rawCode = normalizeCode(countryCode ?? '')
+  const code = specialRegionFlag(provinceCode) ?? specialRegionFlag(rawCode) ?? rawCode
   if (!/^[a-z]{2}$/.test(code)) return null
   const source = flagIcons[`/node_modules/flag-icons/flags/4x3/${code}.svg`]
   if (!source) return null
