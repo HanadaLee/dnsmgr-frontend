@@ -45,6 +45,7 @@ import { toast } from '@/components/ui/toast'
 import { useApiMutation } from '@/hooks/use-api-mutation'
 import { bulkRecordTextForSave, recordValueForDisplay, recordValueForSave, recordValuesForSave } from '@/lib/dns-record-value'
 import { formatDateTime } from '@/lib/format'
+import { buildRecordBatchBody } from '@/lib/record-batch'
 
 type WeightedRecordSet = { id: string; lookupName: string; subdomain: string; type: string; recordCount: number; enabled: boolean; lineAlgorithms: Array<{ lineId: string; enabled: boolean }> }
 
@@ -223,7 +224,7 @@ function BatchToolbar({ records, options, groups, pending, onBatch }: { records:
     { name: 'value', label: '记录值', kind: 'textarea' as const, required: true, visible: (values: Record<string, unknown>) => values.action === 'value' },
     { name: 'lineId', label: '线路', kind: 'select' as const, options: (options?.lines ?? []).map((line) => ({ value: line.id, label: line.label })), required: true, visible: (values: Record<string, unknown>) => values.action === 'line' },
   ]
-  return <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3"><span className="mr-auto text-sm">已选择 {records.length} 条记录</span><FormDialog trigger={<Button size="sm" variant="outline"><Layers3Icon data-icon="inline-start" />批量操作</Button>} title="批量操作解析记录" fields={fields} pending={pending} onSubmit={(values, close) => { const action = String(values.action); const body = action.startsWith('status-') ? { action: 'status', enabled: action === 'status-enable', records: snapshots } : { ...values, value: action === 'value' ? recordValueForSave(options?.providerType, String(values.type ?? ''), String(values.value ?? '')) : values.value, action, groupId: action === 'group' ? groupIdFromSelect(values.groupId) : values.groupId, records: snapshots, remark: String(values.remark ?? '') || null }; onBatch(body, close) }} /></div>
+  return <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3"><span className="mr-auto text-sm">已选择 {records.length} 条记录</span><FormDialog trigger={<Button size="sm" variant="outline"><Layers3Icon data-icon="inline-start" />批量操作</Button>} title="批量操作解析记录" fields={fields} pending={pending} onSubmit={(values, close) => onBatch(buildRecordBatchBody(values, snapshots, options?.providerType), close)} /></div>
 }
 
 function AdvancedRecords({ domainId, domainName, options, groups, aliases, weights, bulk, aliasCreate, aliasDelete, weightStatus, onImported }: {
