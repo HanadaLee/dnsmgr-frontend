@@ -31,7 +31,7 @@ export function AxisNowPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="第三方高级功能"
-        title={showRules && domainName ? domainName : "AxisNow调度管理"}
+        title={showRules && domainName ? domainName : "AxisNow调度"}
         description={showRules ? "管理当前域名的 AxisNow DNS 路由规则。" : "集中管理 AxisNow DNS 路由、EIP 和标签。"}
       />
       <Tabs

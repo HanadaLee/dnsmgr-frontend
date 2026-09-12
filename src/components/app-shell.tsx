@@ -83,7 +83,7 @@ const titleMap: Array<[RegExp, string]> = [
   [/^\/certificate-cnames/, "DCV托管校验"],
   [/^\/certificate-settings/, "证书设置"],
   [/^\/cloudflare/, "CloudFlare"],
-  [/^\/axisnow(?:\/|$)/, "AxisNow调度管理"],
+  [/^\/axisnow(?:\/|$)/, "AxisNow调度"],
   [/^\/users/, "用户管理"],
   [/^\/logs/, "操作日志"],
   [/^\/system/, "系统设置"],
@@ -217,7 +217,7 @@ function AppShellContent() {
         },
         {
           to: "/axisnow",
-          label: "AxisNow调度管理",
+          label: "AxisNow调度",
           icon: SnowflakeIcon,
           enabled: capabilities.axisNow,
         },
