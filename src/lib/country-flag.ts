@@ -35,7 +35,7 @@ type CountryFlagSource = {
 }
 
 function normalizeCode(value: string): string {
-  return value.trim().toLowerCase().replace(/[_.\/]+/g, '-').replace(/\s+/g, ' ')
+  return value.trim().toLowerCase().replace(/[._/]+/g, '-').replace(/\s+/g, ' ')
 }
 
 function specialRegionFlag(value?: string): string | undefined {
