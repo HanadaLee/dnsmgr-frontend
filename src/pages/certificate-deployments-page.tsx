@@ -17,6 +17,7 @@ import type {
   CertificateAccountTypeDefinition,
   CertificateDeploymentDetail,
   CertificateDeploymentSummary,
+  CertificateSettings,
   DataResponse,
   OperationResult,
   PageResponse,
@@ -67,9 +68,17 @@ import { formatDateTime } from "@/lib/format";
 
 type DeploymentForm = {
   accounts: Array<{ id: number; type: string; label: string }>;
-  orders: Array<{ id: number; label: string }>;
+  orders: Array<{ id: number; label: string; domain?: string }>;
   accountTypes: CertificateAccountTypeDefinition[];
 };
+
+function renderDeploymentTemplate(template: string, order: DeploymentForm["orders"][number] | undefined) {
+  const domain = (order?.domain ?? "").replace(/^\*\./, "").replace(/\.$/, "");
+  return template
+    .replaceAll("{domainWithDashes}", domain.replaceAll(".", "-"))
+    .replaceAll("{domain}", domain)
+    .replaceAll("{orderId}", String(order?.id ?? ""));
+}
 type DeploymentAction = {
   id: number;
   action: "reset" | "process" | "redeploy";
@@ -82,6 +91,7 @@ const pendingDeploymentStatus: Record<DeploymentAction["action"], string> = {
 
 export function CertificateDeploymentsPage() {
   const [searchParams] = useSearchParams();
+  const initiallyOpenEditor = searchParams.get("create") === "1";
   const requestedOrderId = Number(searchParams.get("orderId"));
   const initialOrderId =
     Number.isSafeInteger(requestedOrderId) && requestedOrderId > 0
@@ -108,6 +118,11 @@ export function CertificateDeploymentsPage() {
           "/api/web/v1/certificate-deployments/form",
         )
       ).data,
+  });
+  const settings = useQuery({
+    queryKey: ["certificate-settings"],
+    queryFn: async () =>
+      (await apiGet<DataResponse<CertificateSettings>>("/api/web/v1/certificate-settings")).data,
   });
   const tasks = useQuery({
     queryKey: [
@@ -193,11 +208,21 @@ export function CertificateDeploymentsPage() {
       label: "部署目标",
       render: (task) => (
         <div className="min-w-48">
-          <p className="font-medium">
-            {task.account.name ?? task.account.label}
-          </p>
+          <p className="font-medium">{task.account.label}</p>
           <p className="text-xs text-muted-foreground">
-            {task.remark ?? task.account.remark ?? task.account.type}
+            {task.remark ?? task.account.type}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "account",
+      label: "部署账户",
+      render: (task) => (
+        <div className="min-w-40">
+          <p className="font-medium">{task.account.name ?? `账户 #${task.account.id}`}</p>
+          <p className="text-xs text-muted-foreground">
+            {task.account.remark ?? `#${task.account.id}`}
           </p>
         </div>
       ),
@@ -264,8 +289,8 @@ export function CertificateDeploymentsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Certificates"
-        title="自动部署"
-        description="将已签发证书自动部署到服务器、CDN、负载均衡或其他目标。"
+        title="证书部署"
+        description="将已签发证书部署到服务器、CDN、负载均衡或其他目标。"
         action={
           <DeploymentEditor
             trigger={
@@ -276,6 +301,8 @@ export function CertificateDeploymentsPage() {
             }
             form={form.data}
             initialOrderId={initialOrderId}
+            localSettings={settings.data?.localDeployment}
+            initiallyOpen={initiallyOpenEditor}
           />
         }
       />
@@ -493,6 +520,15 @@ export function CertificateDeploymentsPage() {
               <Button
                 size="sm"
                 variant="outline"
+                disabled={batch.isPending}
+                onClick={() => batch.mutate({ action: "process" })}
+              >
+                <PlayIcon data-icon="inline-start" />
+                执行
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
                 onClick={() => batch.mutate({ action: "enable" })}
               >
                 启用
@@ -558,6 +594,9 @@ export function CertificateDeploymentsPage() {
           {form.isError ? (
             <QueryError error={form.error} retry={() => void form.refetch()} />
           ) : null}
+          {settings.isError ? (
+            <QueryError error={settings.error} retry={() => void settings.refetch()} />
+          ) : null}
           {tasks.isError ? (
             <QueryError
               error={tasks.error}
@@ -572,7 +611,7 @@ export function CertificateDeploymentsPage() {
               rowKey={(task) => String(task.id)}
               selected={selected}
               onSelectedChange={setSelected}
-              emptyTitle="暂无自动部署任务"
+              emptyTitle="暂无证书部署任务"
             />
           )}
           {tasks.data ? (
@@ -663,7 +702,7 @@ function DeploymentActions({
                 删除
               </DropdownMenuItem>
             }
-            title="删除自动部署任务？"
+            title="删除证书部署任务？"
             description="部署目标配置将被移除。"
             destructive
             pending={remove.isPending}
@@ -680,17 +719,22 @@ function DeploymentEditor({
   task,
   form,
   initialOrderId,
+  localSettings,
+  initiallyOpen = false,
 }: {
   trigger: ReactElement;
   task?: CertificateDeploymentSummary;
   form?: DeploymentForm;
   initialOrderId?: number;
+  localSettings?: CertificateSettings["localDeployment"];
+  initiallyOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initiallyOpen);
   const [accountId, setAccountId] = useState("");
   const [orderId, setOrderId] = useState("");
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [remark, setRemark] = useState("");
+  const [localMode, setLocalMode] = useState<"quick" | "custom">("quick");
   const detail = useQuery({
     queryKey: ["certificate-deployment", task?.id],
     queryFn: async () =>
@@ -716,6 +760,8 @@ function DeploymentEditor({
   const definition = form?.accountTypes.find(
     (item) => item.type === account?.type,
   );
+  const selectedOrder = form?.orders.find((item) => String(item.id) === orderId);
+  const isLocal = account?.type === "local";
   useEffect(() => {
     if (!open || task) return;
     const first = form?.accounts[0];
@@ -726,13 +772,15 @@ function DeploymentEditor({
     setOrderId(String(requestedOrder?.id ?? form?.orders[0]?.id ?? ""));
     const type = form?.accountTypes.find((item) => item.type === first?.type);
     setConfig(type ? defaultsForFields(type.taskFields) : {});
+    setLocalMode(first?.type === "local" ? (localSettings?.defaultMode ?? "quick") : "custom");
     setRemark("");
-  }, [form, initialOrderId, open, task]);
+  }, [form, initialOrderId, localSettings?.defaultMode, open, task]);
   useEffect(() => {
     if (!detail.data) return;
     setAccountId(String(detail.data.accountId));
     setOrderId(String(detail.data.orderId));
     setConfig(detail.data.config);
+    setLocalMode("custom");
     setRemark(detail.data.remark ?? "");
   }, [detail.data]);
   return (
@@ -746,7 +794,16 @@ function DeploymentEditor({
               {
                 accountId: Number(accountId),
                 orderId: Number(orderId),
-                config,
+                config: isLocal && localMode === "quick" && localSettings
+                  ? {
+                      ...config,
+                      format: "pem",
+                      pem_cert_file: renderDeploymentTemplate(localSettings.pemCertificatePathTemplate, selectedOrder),
+                      pem_key_file: renderDeploymentTemplate(localSettings.pemPrivateKeyPathTemplate, selectedOrder),
+                      pfx_file: renderDeploymentTemplate(localSettings.pfxPathTemplate, selectedOrder),
+                      cmd: renderDeploymentTemplate(localSettings.commandTemplate, selectedOrder),
+                    }
+                  : config,
                 remark: remark || null,
               },
               { onSuccess: () => setOpen(false) },
@@ -755,7 +812,7 @@ function DeploymentEditor({
         >
           <DialogHeader>
             <DialogTitle>
-              {task ? "编辑自动部署任务" : "添加自动部署任务"}
+              {task ? "编辑证书部署任务" : "添加证书部署任务"}
             </DialogTitle>
             <DialogDescription>
               选择部署账户和证书后，填写目标类型要求的任务配置。
@@ -784,6 +841,7 @@ function DeploymentEditor({
                         (item) => item.type === selected?.type,
                       );
                       setConfig(type ? defaultsForFields(type.taskFields) : {});
+                      setLocalMode(selected?.type === "local" ? (localSettings?.defaultMode ?? "quick") : "custom");
                     }}
                   >
                     <SelectTrigger className="w-full">
@@ -829,7 +887,22 @@ function DeploymentEditor({
                     {definition.taskNote}
                   </p>
                 ) : null}
-                {definition ? (
+                {isLocal ? (
+                  <Field>
+                    <FieldLabel>配置模式</FieldLabel>
+                    <Select items={[{ value: "quick", label: "快速模式" }, { value: "custom", label: "自定义模式" }]} value={localMode} onValueChange={(value) => setLocalMode((value ?? "quick") as "quick" | "custom")}>
+                      <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectGroup><SelectItem value="quick">快速模式</SelectItem><SelectItem value="custom">自定义模式</SelectItem></SelectGroup></SelectContent>
+                    </Select>
+                  </Field>
+                ) : null}
+                {isLocal && localMode === "quick" && localSettings ? (
+                  <div className="space-y-2 rounded-lg bg-muted p-3 text-sm">
+                    <p><span className="text-muted-foreground">证书：</span><code>{renderDeploymentTemplate(localSettings.pemCertificatePathTemplate, selectedOrder)}</code></p>
+                    <p><span className="text-muted-foreground">私钥：</span><code>{renderDeploymentTemplate(localSettings.pemPrivateKeyPathTemplate, selectedOrder)}</code></p>
+                    {localSettings.commandTemplate ? <p><span className="text-muted-foreground">命令：</span><code>{renderDeploymentTemplate(localSettings.commandTemplate, selectedOrder)}</code></p> : null}
+                  </div>
+                ) : definition ? (
                   <DynamicFields
                     fields={definition.taskFields}
                     values={config}

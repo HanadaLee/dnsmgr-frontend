@@ -362,7 +362,7 @@ export function CertificateOrdersPage() {
             </div>
             <Select
               items={[
-                { value: "all", label: "全部签发账户" },
+                { value: "all", label: "全部CA账户" },
                 ...(form.data?.accounts ?? []).map((account) => ({
                   value: String(account.id),
                   label: account.label,
@@ -380,7 +380,7 @@ export function CertificateOrdersPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="all">全部签发账户</SelectItem>
+                  <SelectItem value="all">全部CA账户</SelectItem>
                   {(form.data?.accounts ?? []).map((account) => (
                     <SelectItem key={account.id} value={String(account.id)}>
                       {account.label}
@@ -660,7 +660,7 @@ function OrderActions({
               <ArtifactsDialog order={order} />
               <DropdownMenuItem
                 render={
-                  <Link to={`/certificate-deployments?orderId=${order.id}`} />
+                  <Link to={`/certificate-deployments?orderId=${order.id}&create=1`} />
                 }
               >
                 <PlayIcon />
@@ -831,7 +831,7 @@ function OrderEditor({
                 {mode === "managed" ? (
                   <>
                     <Field>
-                      <FieldLabel>签发账户</FieldLabel>
+                      <FieldLabel>CA账户</FieldLabel>
                       <Select
                         items={(form?.accounts ?? []).map((account) => ({
                           value: String(account.id),

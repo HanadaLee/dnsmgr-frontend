@@ -25,7 +25,7 @@ export function LogsPage() {
   const query = useQuery({ queryKey: ['logs', page, filters, canFilterByUser], queryFn: () => apiGet<PageResponse<AuditLogEntry>>('/api/web/v1/logs', { page, pageSize: 20, q: filters.q, domain: filters.domain, userId: canFilterByUser && filters.userId ? Number(filters.userId) : undefined }) })
   const columns: DataColumn<AuditLogEntry>[] = [
     { key: 'time', label: '时间', render: (item) => <span className="whitespace-nowrap">{formatDateTime(item.occurredAt)}</span> },
-    { key: 'actor', label: '操作者', render: (item) => <Badge variant="secondary">{item.actor.kind === 'administrator' ? '管理员' : `用户 #${item.actor.userId}`}</Badge> },
+    { key: 'actor', label: '操作者', render: (item) => <Badge variant="secondary">{item.actor.kind === 'administrator' ? '管理员' : (item.actor.username ?? `用户 #${item.actor.userId}`)}</Badge> },
     { key: 'domain', label: '域名', render: (item) => item.domain ?? '—' },
     { key: 'action', label: '操作', render: (item) => <span className="font-medium">{item.action}</span> },
     { key: 'detail', label: '详情', render: (item) => <span className="block max-w-xl break-words text-muted-foreground">{item.detail || '—'}</span> },

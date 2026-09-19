@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/select";
 import { useApiMutation } from "@/hooks/use-api-mutation";
 import { formatDateTime } from "@/lib/format";
+import { recordValueForDisplay, recordValueForSave, recordValuesForSave } from "@/lib/dns-record-value";
 
 type ScheduleForm = {
   domains: AutomationDomainOption[];
@@ -176,6 +177,7 @@ function taskBody(
   const providerType = domains.find(
     (domain) => String(domain.id) === String(values.domainId),
   )?.providerType;
+  const recordType = String(values.recordType ?? "") || undefined;
   return {
     domainId: Number(values.domainId),
     recordName: values.recordName,
@@ -188,16 +190,21 @@ function taskBody(
         ? String(values.switchDate ?? "")
         : "",
     switchTime: values.switchTime,
-    value: String(values.value ?? "") || null,
+    value: String(values.value ?? "")
+      ? recordValueForSave(providerType, recordType, String(values.value))
+      : null,
     lineMode:
       values.action === "update" && providerType === "cloudflare"
         ? (values.lineMode ?? "unchanged")
         : "unchanged",
     remark: String(values.remark ?? "") || null,
     record: {
-      value: String(values.currentValue ?? "") || undefined,
+      type: recordType,
+      value: String(values.currentValue ?? "")
+        ? recordValueForSave(providerType, recordType, String(values.currentValue))
+        : undefined,
       values: Array.isArray(values.currentValues)
-        ? values.currentValues.map(String)
+        ? recordValuesForSave(providerType, recordType, values.currentValues.map(String))
         : undefined,
       lineId: String(values.lineId),
       lineLabel: String(values.lineLabel ?? "") || undefined,
@@ -291,7 +298,13 @@ export function SchedulesPage() {
             {task.recordName}.{task.domain}
           </p>
           <p className="text-xs text-muted-foreground">
-            {task.remark ?? task.value ?? "—"}
+            {task.remark ?? (task.value
+              ? recordValueForDisplay(
+                  form.data?.domains.find((domain) => domain.id === task.domainId)?.providerType,
+                  task.record?.type ?? (task.value.endsWith(".") ? "CNAME" : undefined),
+                  task.value,
+                )
+              : "—")}
           </p>
         </div>
       ),
@@ -627,6 +640,7 @@ function ScheduleDialog({
 }) {
   const initial = task
     ? {
+        recordType: task.record?.type ?? (task.value?.endsWith(".") ? "CNAME" : ""),
         domainId: String(task.domainId),
         recordName: task.recordName,
         recordId: task.recordId,
@@ -635,13 +649,29 @@ function ScheduleDialog({
         action: task.action,
         switchDate: task.switchDate ?? "",
         switchTime: task.switchTime,
-        value: task.value ?? "",
+        value: task.value
+          ? recordValueForDisplay(
+              form?.domains.find((domain) => domain.id === task.domainId)?.providerType,
+              task.record?.type ?? (task.value.endsWith(".") ? "CNAME" : undefined),
+              task.value,
+            )
+          : "",
         lineMode: task.lineMode,
         lineId: task.record?.lineId ?? "",
         lineLabel: task.record?.lineLabel ?? "",
         ttl: task.record?.ttl ?? 600,
-        currentValue: task.record?.value ?? "",
-        currentValues: task.record?.values,
+        currentValue: task.record?.value
+          ? recordValueForDisplay(
+              form?.domains.find((domain) => domain.id === task.domainId)?.providerType,
+              task.record?.type ?? (task.record.value.endsWith(".") ? "CNAME" : undefined),
+              task.record.value,
+            )
+          : "",
+        currentValues: task.record?.values?.map((value) => recordValueForDisplay(
+          form?.domains.find((domain) => domain.id === task.domainId)?.providerType,
+          task.record?.type ?? (value.endsWith(".") ? "CNAME" : undefined),
+          value,
+        )),
         remark: task.remark ?? "",
       }
     : {
@@ -658,6 +688,7 @@ function ScheduleDialog({
     "domainId",
     "recordName",
     "recordId",
+    "recordType",
     "lineId",
     "lineLabel",
     "ttl",

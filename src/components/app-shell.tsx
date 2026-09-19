@@ -79,7 +79,7 @@ const titleMap: Array<[RegExp, string]> = [
   [/^\/schedules/, "定时任务"],
   [/^\/optimize-ip/, "优选 IP"],
   [/^\/certificate-orders/, "证书订单"],
-  [/^\/certificate-deployments/, "自动部署"],
+  [/^\/certificate-deployments/, "证书部署"],
   [/^\/certificate-cnames/, "DCV托管校验"],
   [/^\/certificate-settings/, "证书设置"],
   [/^\/cloudflare/, "CloudFlare"],
@@ -194,7 +194,7 @@ function AppShellContent() {
         },
         {
           to: "/certificate-deployments",
-          label: "自动部署",
+          label: "证书部署",
           icon: FileClockIcon,
           enabled: capabilities.certificates,
         },

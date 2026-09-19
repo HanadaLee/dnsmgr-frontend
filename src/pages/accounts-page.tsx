@@ -24,7 +24,7 @@ export function AccountsPage() {
       : []),
     ...(session.capabilities.certificates
       ? [
-          { value: "issuance" as const, label: "签发账户" },
+          { value: "issuance" as const, label: "CA账户" },
           { value: "deployment" as const, label: "部署账户" },
         ]
       : []),

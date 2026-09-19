@@ -175,7 +175,7 @@ export type RecordGroup = { id: string; name: string }
 export type DomainAlias = { id: number; name: string; status: 'active' | 'blocked' | 'dns_error' | 'unknown' }
 
 export type AutomationDomainOption = { id: number; name: string; providerType: string }
-export type DnsRecordSnapshot = { lineId: string; lineLabel?: string; ttl: number; value?: string; values?: string[] }
+export type DnsRecordSnapshot = { type?: string; lineId: string; lineLabel?: string; ttl: number; value?: string; values?: string[] }
 export type MonitoringOverview = {
   workerRunning: boolean
   runCountToday: number
@@ -340,6 +340,19 @@ export type CertificateSettings = {
   renewBeforeDays: number
   deploymentWindow: { startHour: number; endHour: number }
   notifications: { email: CertificateNotificationMode; wechat: CertificateNotificationMode; telegram: CertificateNotificationMode; robotWebhook: CertificateNotificationMode; customWebhook: CertificateNotificationMode }
+  localDeployment: {
+    defaultMode: 'quick' | 'custom'
+    pemCertificatePathTemplate: string
+    pemPrivateKeyPathTemplate: string
+    pfxPathTemplate: string
+    commandTemplate: string
+  }
+  dcvDelegation: {
+    allowedDomains: string[]
+    domainMatchMode: 'exact' | 'suffix'
+    targetRecordNameTemplate: string
+    forceTargetRecordNameTemplate: boolean
+  }
 }
 export type ProcessLog = { content: string; modifiedAt: number }
 
@@ -539,7 +552,7 @@ export type AxisNowTag = {
 export type UserSummary = { id: number; username: string; role: 'administrator' | 'user' | 'unknown'; apiEnabled: boolean; totpEnabled: boolean; enabled: boolean; registeredAt?: string; lastLoginAt?: string }
 export type UserDetail = UserSummary & { apiKey?: string; permissions: string[] }
 export type UserFormOptions = { domains: string[] }
-export type AuditLogEntry = { id: number; actor: { kind: 'administrator' } | { kind: 'user'; userId: number }; domain?: string; action: string; detail: string; occurredAt?: string }
+export type AuditLogEntry = { id: number; actor: { kind: 'administrator' } | { kind: 'user'; userId: number; username?: string }; domain?: string; action: string; detail: string; occurredAt?: string }
 export type ProfileSecurity = { localCredentialsAvailable: boolean; totpEnabled: boolean }
 export type TotpEnrollment = { secret: string; provisioningUri: string }
 export type LoginSettings = { graphicalVerificationEnabled: boolean; appliesToCurrentLogin: boolean }

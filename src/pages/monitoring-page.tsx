@@ -65,6 +65,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApiMutation } from "@/hooks/use-api-mutation";
 import { formatDateTime } from "@/lib/format";
+import { recordValueForDisplay, recordValueForSave } from "@/lib/dns-record-value";
 
 type MonitoringForm = {
   supportPing: boolean;
@@ -183,14 +184,20 @@ function taskFields(form?: MonitoringForm): FormFieldSpec[] {
   ];
 }
 
-function mutationBody(values: Record<string, unknown>) {
+function mutationBody(values: Record<string, unknown>, domains: AutomationDomainOption[]) {
+  const providerType = domains.find(
+    (domain) => String(domain.id) === String(values.domainId),
+  )?.providerType;
+  const recordType = String(values.recordType ?? "") || undefined;
   return {
     domainId: Number(values.domainId),
     recordName: values.recordName,
     recordId: values.recordId,
     action: values.action,
-    primaryValue: values.primaryValue,
-    backupValue: String(values.backupValue ?? "") || null,
+    primaryValue: recordValueForSave(providerType, recordType, String(values.primaryValue ?? "")),
+    backupValue: String(values.backupValue ?? "")
+      ? recordValueForSave(providerType, recordType, String(values.backupValue))
+      : null,
     checkType: values.checkType,
     checkUrl: String(values.checkUrl ?? "") || null,
     tcpPort: values.checkType === "tcp" ? Number(values.tcpPort) : null,
@@ -201,6 +208,7 @@ function mutationBody(values: Record<string, unknown>) {
     enableCloudflareProxy: Boolean(values.enableCloudflareProxy),
     remark: String(values.remark ?? "") || null,
     record: {
+      type: recordType,
       lineId: String(values.lineId),
       lineLabel: String(values.lineLabel ?? "") || undefined,
       ttl: Number(values.ttl),
@@ -320,7 +328,13 @@ export function MonitoringPage() {
           <p className="font-medium">
             {task.recordName}.{task.domain}
           </p>
-          <p className="text-xs text-muted-foreground">{task.primaryValue}</p>
+          <p className="text-xs text-muted-foreground">
+            {recordValueForDisplay(
+              form.data?.domains.find((domain) => domain.id === task.domainId)?.providerType,
+              task.record?.type ?? (task.primaryValue.endsWith(".") ? "CNAME" : undefined),
+              task.primaryValue,
+            )}
+          </p>
         </div>
       ),
     },
@@ -807,11 +821,22 @@ function MonitoringTaskDialog({
 }) {
   const initial = task
     ? {
+        recordType: task.record?.type ?? (task.primaryValue.endsWith(".") ? "CNAME" : ""),
         domainId: String(task.domainId),
         recordName: task.recordName,
         recordId: task.recordId,
-        primaryValue: task.primaryValue,
-        backupValue: task.backupValue ?? "",
+        primaryValue: recordValueForDisplay(
+          form?.domains.find((domain) => domain.id === task.domainId)?.providerType,
+          task.record?.type ?? (task.primaryValue.endsWith(".") ? "CNAME" : undefined),
+          task.primaryValue,
+        ),
+        backupValue: task.backupValue
+          ? recordValueForDisplay(
+              form?.domains.find((domain) => domain.id === task.domainId)?.providerType,
+              task.record?.type ?? (task.backupValue.endsWith(".") ? "CNAME" : undefined),
+              task.backupValue,
+            )
+          : "",
         action: task.action,
         checkType: task.checkType,
         checkUrl: task.checkUrl ?? "",
@@ -840,6 +865,7 @@ function MonitoringTaskDialog({
     "domainId",
     "recordName",
     "recordId",
+    "recordType",
     "lineId",
     "lineLabel",
     "ttl",
@@ -850,7 +876,7 @@ function MonitoringTaskDialog({
       title={task ? "编辑监控任务" : "添加监控任务"}
       initialValues={initial}
       pending={pending}
-      onSubmit={(values, close) => onSave(mutationBody(values), close)}
+      onSubmit={(values, close) => onSave(mutationBody(values, form?.domains ?? []), close)}
     >
       {(values, onChange) => (
         <AutomationRecordFields

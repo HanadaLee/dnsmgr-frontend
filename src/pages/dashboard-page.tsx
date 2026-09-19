@@ -130,7 +130,7 @@ export function DashboardPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>自动部署</CardTitle><CardDescription>最近部署任务状态</CardDescription><CardAction><ActivityIcon className="text-primary" /></CardAction></CardHeader>
+          <CardHeader><CardTitle>证书部署</CardTitle><CardDescription>最近部署任务状态</CardDescription><CardAction><ActivityIcon className="text-primary" /></CardAction></CardHeader>
           <CardContent className="flex flex-col gap-4">
             <HealthRow label="成功任务" current={data.deployments.succeeded} total={deploymentTotal} />
             <div className="grid grid-cols-2 gap-3 text-sm">

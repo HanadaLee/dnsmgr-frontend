@@ -13,6 +13,7 @@ import {
 import { apiDelete, apiGet, apiPost, apiPut } from "@/api/client";
 import type {
   CertificateCnameProxy,
+  CertificateSettings,
   DataResponse,
   OperationResult,
   PageResponse,
@@ -34,7 +35,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -51,9 +52,18 @@ import { formatDateTime } from "@/lib/format";
 type CnameForm = { domains: Array<{ id: number; name: string }> };
 type CnameCheck = { status: "verified" | "unverified" };
 
-function automaticRecordName(domain: string) {
-  const value = domain.trim();
-  return value ? `${value.replaceAll(".", "-")}.cname` : "";
+function automaticRecordName(domain: string, template: string) {
+  const value = domain.trim().toLowerCase().replace(/^\*\./, "").replace(/\.$/, "");
+  return value
+    ? template.replaceAll("{domainWithDashes}", value.replaceAll(".", "-")).replaceAll("{domain}", value)
+    : "";
+}
+
+function allowedDomain(domain: string, settings: CertificateSettings["dcvDelegation"] | undefined) {
+  if (!settings || settings.allowedDomains.length === 0) return true;
+  const value = domain.trim().toLowerCase().replace(/^\*\./, "").replace(/\.$/, "");
+  return settings.allowedDomains.some((allowed) => value === allowed
+    || (settings.domainMatchMode === "suffix" && value.endsWith(`.${allowed}`)));
 }
 
 function CopyCode({ value, label }: { value: string; label: string }) {
@@ -89,6 +99,11 @@ export function CertificateCnamesPage() {
           "/api/web/v1/certificate-cnames/form",
         )
       ).data,
+  });
+  const settings = useQuery({
+    queryKey: ["certificate-settings"],
+    queryFn: async () =>
+      (await apiGet<DataResponse<CertificateSettings>>("/api/web/v1/certificate-settings")).data,
   });
   const query = useQuery({
     queryKey: ["certificate-cnames", page, queryText, sort, order],
@@ -266,18 +281,24 @@ export function CertificateCnamesPage() {
               targetRecordName: "",
             }}
             pending={save.isPending}
-            onSubmit={(values, close) =>
+            onSubmit={(values, close) => {
+              if (!allowedDomain(String(values.domain ?? ""), settings.data?.dcvDelegation)) {
+                toast.add({ title: "该证书域名不在允许托管的域名范围内", type: "error" });
+                return;
+              }
               save.mutate(
                 {
                   body: {
                     domain: values.domain,
                     targetDomainId: Number(values.targetDomainId),
-                    targetRecordName: values.targetRecordName,
+                    targetRecordName: settings.data?.dcvDelegation.forceTargetRecordNameTemplate
+                      ? automaticRecordName(String(values.domain ?? ""), settings.data.dcvDelegation.targetRecordNameTemplate)
+                      : values.targetRecordName,
                   },
                 },
                 { onSuccess: close },
-              )
-            }
+              );
+            }}
           >
             {(values, onChange) => (
               <FieldGroup>
@@ -299,8 +320,8 @@ export function CertificateCnamesPage() {
                         domain,
                         targetRecordName:
                           !currentRecord ||
-                          currentRecord === automaticRecordName(previous)
-                            ? automaticRecordName(domain)
+                          currentRecord === automaticRecordName(previous, settings.data?.dcvDelegation.targetRecordNameTemplate ?? "{domainWithDashes}.cname")
+                            ? automaticRecordName(domain, settings.data?.dcvDelegation.targetRecordNameTemplate ?? "{domainWithDashes}.cname")
                             : currentRecord,
                       });
                     }}
@@ -334,6 +355,7 @@ export function CertificateCnamesPage() {
                   <Input
                     id="cname-record"
                     value={String(values.targetRecordName ?? "")}
+                    disabled={settings.data?.dcvDelegation.forceTargetRecordNameTemplate}
                     required
                     onChange={(event) =>
                       onChange({
@@ -342,6 +364,7 @@ export function CertificateCnamesPage() {
                       })
                     }
                   />
+                  {settings.data?.dcvDelegation.forceTargetRecordNameTemplate ? <FieldDescription>系统设置已强制使用目标记录模板。</FieldDescription> : null}
                 </Field>
               </FieldGroup>
             )}
@@ -419,6 +442,9 @@ export function CertificateCnamesPage() {
           </form>
           {form.isError ? (
             <QueryError error={form.error} retry={() => void form.refetch()} />
+          ) : null}
+          {settings.isError ? (
+            <QueryError error={settings.error} retry={() => void settings.refetch()} />
           ) : null}
           {query.isError ? (
             <QueryError
