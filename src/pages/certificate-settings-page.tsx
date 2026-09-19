@@ -24,6 +24,8 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { useApiMutation } from '@/hooks/use-api-mutation'
 
+type CnameForm = { domains: Array<{ id: number; name: string }> }
+
 const notificationModes = [
   { value: 'off', label: '关闭' },
   { value: 'all', label: '全部通知' },
@@ -56,6 +58,10 @@ export function CertificateSettingsPanel() {
     queryKey: ['certificate-settings'],
     queryFn: async () => (await apiGet<DataResponse<CertificateSettings>>('/api/web/v1/certificate-settings')).data,
   })
+  const cnameForm = useQuery({
+    queryKey: ['certificate-cnames-form'],
+    queryFn: async () => (await apiGet<DataResponse<CnameForm>>('/api/web/v1/certificate-cnames/form')).data,
+  })
   const [values, setValues] = useState<CertificateSettings | null>(null)
   const [selectedLocalTemplateId, setSelectedLocalTemplateId] = useState('')
   const [selectedDcvTemplateId, setSelectedDcvTemplateId] = useState('')
@@ -80,6 +86,10 @@ export function CertificateSettingsPanel() {
   const selectedDcvTemplate = values.dcvDelegation.templates.find(
     (template) => template.id === selectedDcvTemplateId,
   ) ?? values.dcvDelegation.templates[0]
+  const targetDomainOptions = (cnameForm.data?.domains ?? []).map((domain) => ({
+    value: String(domain.id),
+    label: domain.name,
+  }))
 
   const updateLocal = (patch: Partial<CertificateSettings['localDeployment']>) => {
     setValues((current) => current ? {
@@ -386,7 +396,7 @@ export function CertificateSettingsPanel() {
         <Card>
           <CardHeader>
             <CardTitle>DCV 托管模板</CardTitle>
-            <CardDescription>管理多套域名限制和目标记录拼接规则。</CardDescription>
+            <CardDescription>预先选择 CNAME 目标域名和主机记录规则；使用模板创建时只需填写证书域名。</CardDescription>
           </CardHeader>
           <CardContent>
             <FieldGroup>
@@ -434,6 +444,24 @@ export function CertificateSettingsPanel() {
                     <Switch id="dcv-template-default" checked={values.dcvDelegation.defaultTemplateId === selectedDcvTemplate.id} onCheckedChange={(checked) => { if (checked) updateDcv({ defaultTemplateId: selectedDcvTemplate.id }) }} />
                   </Field>
                   <Field>
+                    <FieldLabel>CNAME 目标域名</FieldLabel>
+                    <Select
+                      items={targetDomainOptions}
+                      value={selectedDcvTemplate.targetDomainId ? String(selectedDcvTemplate.targetDomainId) : null}
+                      onValueChange={(value) => updateDcvTemplate({ targetDomainId: value ? Number(value) : null })}
+                    >
+                      <SelectTrigger className="w-full"><SelectValue placeholder="请选择托管 CNAME 的域名" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {targetDomainOptions.map((domain) => (
+                            <SelectItem key={domain.value} value={domain.value}>{domain.label}</SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    <FieldDescription>生成的 CNAME 记录值将位于这个已托管域名下。</FieldDescription>
+                  </Field>
+                  <Field>
                     <FieldLabel htmlFor="dcv-domains">允许托管的域名</FieldLabel>
                     <Textarea
                       id="dcv-domains"
@@ -441,32 +469,12 @@ export function CertificateSettingsPanel() {
                       placeholder={'example.com\nexample.net'}
                       onChange={(event) => updateDcvTemplate({ allowedDomains: event.target.value.split(/[\r\n,]+/).map((item) => item.trim()).filter(Boolean) })}
                     />
-                    <FieldDescription>每行一个；留空表示不限制。</FieldDescription>
+                    <FieldDescription>每行一个，自动包含其子域名；留空表示不限制。</FieldDescription>
                   </Field>
                   <Field>
-                    <FieldLabel>域名匹配方式</FieldLabel>
-                    <Select
-                      items={[{ value: 'suffix', label: '域名及其子域名' }, { value: 'exact', label: '仅完全匹配' }]}
-                      value={selectedDcvTemplate.domainMatchMode}
-                      onValueChange={(value) => updateDcvTemplate({ domainMatchMode: (value ?? 'suffix') as 'exact' | 'suffix' })}
-                    >
-                      <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value="suffix">域名及其子域名</SelectItem>
-                          <SelectItem value="exact">仅完全匹配</SelectItem>
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="dcv-record-template">默认目标记录模板</FieldLabel>
+                    <FieldLabel htmlFor="dcv-record-template">目标主机记录模板</FieldLabel>
                     <Input id="dcv-record-template" value={selectedDcvTemplate.targetRecordNameTemplate} required onChange={(event) => updateDcvTemplate({ targetRecordNameTemplate: event.target.value })} />
-                    <FieldDescription>支持 {'{domain}'} 和 {'{domainWithDashes}'}。</FieldDescription>
-                  </Field>
-                  <Field orientation="horizontal">
-                    <FieldLabel htmlFor="force-dcv-template">强制使用目标记录模板</FieldLabel>
-                    <Switch id="force-dcv-template" checked={selectedDcvTemplate.forceTargetRecordNameTemplate} onCheckedChange={(checked) => updateDcvTemplate({ forceTargetRecordNameTemplate: checked })} />
+                    <FieldDescription>默认 {'{domainWithDashes}.cname'}，支持 {'{domain}'} 和 {'{domainWithDashes}'}。</FieldDescription>
                   </Field>
                 </>
               ) : null}

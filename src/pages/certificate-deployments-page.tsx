@@ -765,8 +765,7 @@ function DeploymentEditor({
   const isLocal = account?.type === "local";
   const localTemplate = localTemplateId === CUSTOM_TEMPLATE_VALUE
     ? undefined
-    : localSettings?.templates.find((template) => template.id === localTemplateId)
-      ?? localSettings?.templates[0];
+    : localSettings?.templates.find((template) => template.id === localTemplateId);
   useEffect(() => {
     if (!open || task) return;
     const first = form?.accounts[0];
@@ -783,13 +782,19 @@ function DeploymentEditor({
     setRemark("");
   }, [form, initialOrderId, localSettings?.defaultTemplateId, open, task]);
   useEffect(() => {
-    if (!detail.data) return;
+    if (!open || !detail.data) return;
     setAccountId(String(detail.data.accountId));
     setOrderId(String(detail.data.orderId));
     setConfig(detail.data.config);
-    setLocalTemplateId(CUSTOM_TEMPLATE_VALUE);
+    setLocalTemplateId(
+      detail.data.accountType === "local"
+        && detail.data.templateId
+        && localSettings?.templates.some((template) => template.id === detail.data.templateId)
+        ? detail.data.templateId
+        : CUSTOM_TEMPLATE_VALUE,
+    );
     setRemark(detail.data.remark ?? "");
-  }, [detail.data]);
+  }, [detail.data, localSettings?.templates, open]);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={trigger} />
@@ -801,6 +806,7 @@ function DeploymentEditor({
               {
                 accountId: Number(accountId),
                 orderId: Number(orderId),
+                templateId: isLocal && localTemplate ? localTemplate.id : null,
                 config: isLocal && localTemplate
                   ? {
                       ...config,

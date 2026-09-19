@@ -64,8 +64,7 @@ function automaticRecordName(domain: string, template: string) {
 function allowedDomain(domain: string, template: CertificateDcvDelegationTemplate | undefined) {
   if (!template || template.allowedDomains.length === 0) return true;
   const value = domain.trim().toLowerCase().replace(/^\*\./, "").replace(/\.$/, "");
-  return template.allowedDomains.some((allowed) => value === allowed
-    || (template.domainMatchMode === "suffix" && value.endsWith(`.${allowed}`)));
+  return template.allowedDomains.some((allowed) => value === allowed || value.endsWith(`.${allowed}`));
 }
 
 function CopyCode({ value, label }: { value: string; label: string }) {
@@ -298,16 +297,23 @@ export function CertificateCnamesPage() {
                 toast.add({ title: "该证书域名不在允许托管的域名范围内", type: "error" });
                 return;
               }
+              if (selectedTemplate && !selectedTemplate.targetDomainId) {
+                toast.add({ title: "所选模板尚未配置 CNAME 目标域名", type: "error" });
+                return;
+              }
               save.mutate(
                 {
-                  body: {
-                    domain: values.domain,
-                    targetDomainId: Number(values.targetDomainId),
-                    targetRecordName: selectedTemplate?.forceTargetRecordNameTemplate
-                      ? automaticRecordName(String(values.domain ?? ""), selectedTemplate.targetRecordNameTemplate)
-                      : values.targetRecordName,
-                    dcvTemplateId: usesCustomTemplate ? null : selectedTemplate?.id,
-                  },
+                  body: usesCustomTemplate
+                    ? {
+                        domain: values.domain,
+                        targetDomainId: Number(values.targetDomainId),
+                        targetRecordName: values.targetRecordName,
+                        dcvTemplateId: null,
+                      }
+                    : {
+                        domain: values.domain,
+                        dcvTemplateId: selectedTemplate?.id,
+                      },
                 },
                 { onSuccess: close },
               );
@@ -334,29 +340,7 @@ export function CertificateCnamesPage() {
                       value={usesCustomTemplate
                         ? CUSTOM_TEMPLATE_VALUE
                         : (selectedTemplate?.id ?? null)}
-                      onValueChange={(value) => {
-                        const domain = String(values.domain ?? "");
-                        const currentRecord = String(values.targetRecordName ?? "");
-                        const currentAutomatic = selectedTemplate
-                          ? automaticRecordName(domain, selectedTemplate.targetRecordNameTemplate)
-                          : "";
-                        const nextTemplate = dcvSettings?.templates.find(
-                          (template) => template.id === value,
-                        );
-                        const nextUsesCustomTemplate = value === CUSTOM_TEMPLATE_VALUE;
-                        onChange({
-                          ...values,
-                          dcvTemplateId: value ?? "",
-                          targetRecordName:
-                            nextUsesCustomTemplate
-                              ? currentRecord
-                              : (nextTemplate?.forceTargetRecordNameTemplate
-                                || !currentRecord
-                                || (!usesCustomTemplate && currentRecord === currentAutomatic))
-                                ? automaticRecordName(domain, nextTemplate?.targetRecordNameTemplate ?? "{domainWithDashes}.cname")
-                                : currentRecord,
-                        });
-                      }}
+                      onValueChange={(value) => onChange({ ...values, dcvTemplateId: value ?? "" })}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="请选择模板" />
@@ -378,66 +362,47 @@ export function CertificateCnamesPage() {
                     value={String(values.domain ?? "")}
                     placeholder="example.com"
                     required
-                    onChange={(event) => {
-                      const previous = String(values.domain ?? "");
-                      const currentRecord = String(
-                        values.targetRecordName ?? "",
-                      );
-                      const domain = event.target.value;
-                      onChange({
-                        ...values,
-                        domain,
-                        targetRecordName:
-                          usesCustomTemplate
-                            ? currentRecord
-                            : (selectedTemplate?.forceTargetRecordNameTemplate
-                              || !currentRecord
-                              || currentRecord === automaticRecordName(previous, selectedTemplate?.targetRecordNameTemplate ?? "{domainWithDashes}.cname"))
-                              ? automaticRecordName(domain, selectedTemplate?.targetRecordNameTemplate ?? "{domainWithDashes}.cname")
-                              : currentRecord,
-                      });
-                    }}
+                    onChange={(event) => onChange({ ...values, domain: event.target.value })}
                   />
+                  {selectedTemplate ? (
+                    <FieldDescription>
+                      {selectedTemplate.targetDomainId
+                        ? `将创建 ${automaticRecordName(String(values.domain ?? "") || "example.com", selectedTemplate.targetRecordNameTemplate)}.${domainOptions.find((domain) => domain.value === String(selectedTemplate.targetDomainId))?.label ?? "目标域名"}`
+                        : "请先在证书设置中为这个模板选择 CNAME 目标域名。"}
+                    </FieldDescription>
+                  ) : null}
                 </Field>
-                <Field>
-                  <FieldLabel>目标域名</FieldLabel>
-                  <Select
-                    items={domainOptions}
-                    value={String(values.targetDomainId ?? "") || null}
-                    onValueChange={(value) =>
-                      onChange({ ...values, targetDomainId: value ?? "" })
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="请选择目标域名" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {domainOptions.map((domain) => (
-                          <SelectItem key={domain.value} value={domain.value}>
-                            {domain.label}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="cname-record">目标主机记录</FieldLabel>
-                  <Input
-                    id="cname-record"
-                    value={String(values.targetRecordName ?? "")}
-                    disabled={selectedTemplate?.forceTargetRecordNameTemplate}
-                    required
-                    onChange={(event) =>
-                      onChange({
-                        ...values,
-                        targetRecordName: event.target.value,
-                      })
-                    }
-                  />
-                  {selectedTemplate?.forceTargetRecordNameTemplate ? <FieldDescription>所选模板已强制使用目标记录模板。</FieldDescription> : null}
-                </Field>
+                {usesCustomTemplate ? (
+                  <>
+                    <Field>
+                      <FieldLabel>目标域名</FieldLabel>
+                      <Select
+                        items={domainOptions}
+                        value={String(values.targetDomainId ?? "") || null}
+                        onValueChange={(value) => onChange({ ...values, targetDomainId: value ?? "" })}
+                      >
+                        <SelectTrigger className="w-full"><SelectValue placeholder="请选择目标域名" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {domainOptions.map((domain) => (
+                              <SelectItem key={domain.value} value={domain.value}>{domain.label}</SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="cname-record">目标主机记录</FieldLabel>
+                      <Input
+                        id="cname-record"
+                        value={String(values.targetRecordName ?? "")}
+                        placeholder="example-com.cname"
+                        required
+                        onChange={(event) => onChange({ ...values, targetRecordName: event.target.value })}
+                      />
+                    </Field>
+                  </>
+                ) : null}
               </FieldGroup>
               );
             }}
