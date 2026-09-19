@@ -336,22 +336,34 @@ export type CertificateCnameProxy = {
   addedAt?: string
 }
 export type CertificateNotificationMode = 'off' | 'all' | 'failures-only'
+export type CertificateLocalDeploymentTemplate = {
+  id: string
+  name: string
+  pemCertificatePathTemplate: string
+  pemPrivateKeyPathTemplate: string
+  pfxPathTemplate: string
+  commandTemplate: string
+}
+export type CertificateDcvDelegationTemplate = {
+  id: string
+  name: string
+  allowedDomains: string[]
+  domainMatchMode: 'exact' | 'suffix'
+  targetRecordNameTemplate: string
+  forceTargetRecordNameTemplate: boolean
+}
 export type CertificateSettings = {
   renewBeforeDays: number
   deploymentWindow: { startHour: number; endHour: number }
   notifications: { email: CertificateNotificationMode; wechat: CertificateNotificationMode; telegram: CertificateNotificationMode; robotWebhook: CertificateNotificationMode; customWebhook: CertificateNotificationMode }
   localDeployment: {
     defaultMode: 'quick' | 'custom'
-    pemCertificatePathTemplate: string
-    pemPrivateKeyPathTemplate: string
-    pfxPathTemplate: string
-    commandTemplate: string
+    defaultTemplateId: string
+    templates: CertificateLocalDeploymentTemplate[]
   }
   dcvDelegation: {
-    allowedDomains: string[]
-    domainMatchMode: 'exact' | 'suffix'
-    targetRecordNameTemplate: string
-    forceTargetRecordNameTemplate: boolean
+    defaultTemplateId: string
+    templates: CertificateDcvDelegationTemplate[]
   }
 }
 export type ProcessLog = { content: string; modifiedAt: number }

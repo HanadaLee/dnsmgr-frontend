@@ -735,6 +735,7 @@ function DeploymentEditor({
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [remark, setRemark] = useState("");
   const [localMode, setLocalMode] = useState<"quick" | "custom">("quick");
+  const [localTemplateId, setLocalTemplateId] = useState("");
   const detail = useQuery({
     queryKey: ["certificate-deployment", task?.id],
     queryFn: async () =>
@@ -762,6 +763,9 @@ function DeploymentEditor({
   );
   const selectedOrder = form?.orders.find((item) => String(item.id) === orderId);
   const isLocal = account?.type === "local";
+  const localTemplate = localSettings?.templates.find(
+    (template) => template.id === localTemplateId,
+  ) ?? localSettings?.templates[0];
   useEffect(() => {
     if (!open || task) return;
     const first = form?.accounts[0];
@@ -773,8 +777,9 @@ function DeploymentEditor({
     const type = form?.accountTypes.find((item) => item.type === first?.type);
     setConfig(type ? defaultsForFields(type.taskFields) : {});
     setLocalMode(first?.type === "local" ? (localSettings?.defaultMode ?? "quick") : "custom");
+    setLocalTemplateId(localSettings?.defaultTemplateId ?? "");
     setRemark("");
-  }, [form, initialOrderId, localSettings?.defaultMode, open, task]);
+  }, [form, initialOrderId, localSettings?.defaultMode, localSettings?.defaultTemplateId, open, task]);
   useEffect(() => {
     if (!detail.data) return;
     setAccountId(String(detail.data.accountId));
@@ -794,14 +799,14 @@ function DeploymentEditor({
               {
                 accountId: Number(accountId),
                 orderId: Number(orderId),
-                config: isLocal && localMode === "quick" && localSettings
+                config: isLocal && localMode === "quick" && localTemplate
                   ? {
                       ...config,
                       format: "pem",
-                      pem_cert_file: renderDeploymentTemplate(localSettings.pemCertificatePathTemplate, selectedOrder),
-                      pem_key_file: renderDeploymentTemplate(localSettings.pemPrivateKeyPathTemplate, selectedOrder),
-                      pfx_file: renderDeploymentTemplate(localSettings.pfxPathTemplate, selectedOrder),
-                      cmd: renderDeploymentTemplate(localSettings.commandTemplate, selectedOrder),
+                      pem_cert_file: renderDeploymentTemplate(localTemplate.pemCertificatePathTemplate, selectedOrder),
+                      pem_key_file: renderDeploymentTemplate(localTemplate.pemPrivateKeyPathTemplate, selectedOrder),
+                      pfx_file: renderDeploymentTemplate(localTemplate.pfxPathTemplate, selectedOrder),
+                      cmd: renderDeploymentTemplate(localTemplate.commandTemplate, selectedOrder),
                     }
                   : config,
                 remark: remark || null,
@@ -842,6 +847,7 @@ function DeploymentEditor({
                       );
                       setConfig(type ? defaultsForFields(type.taskFields) : {});
                       setLocalMode(selected?.type === "local" ? (localSettings?.defaultMode ?? "quick") : "custom");
+                      setLocalTemplateId(localSettings?.defaultTemplateId ?? "");
                     }}
                   >
                     <SelectTrigger className="w-full">
@@ -897,10 +903,32 @@ function DeploymentEditor({
                   </Field>
                 ) : null}
                 {isLocal && localMode === "quick" && localSettings ? (
-                  <div className="space-y-2 rounded-lg bg-muted p-3 text-sm">
-                    <p><span className="text-muted-foreground">证书：</span><code>{renderDeploymentTemplate(localSettings.pemCertificatePathTemplate, selectedOrder)}</code></p>
-                    <p><span className="text-muted-foreground">私钥：</span><code>{renderDeploymentTemplate(localSettings.pemPrivateKeyPathTemplate, selectedOrder)}</code></p>
-                    {localSettings.commandTemplate ? <p><span className="text-muted-foreground">命令：</span><code>{renderDeploymentTemplate(localSettings.commandTemplate, selectedOrder)}</code></p> : null}
+                  <Field>
+                    <FieldLabel>部署模板</FieldLabel>
+                    <Select
+                      items={localSettings.templates.map((template) => ({
+                        value: template.id,
+                        label: template.name,
+                      }))}
+                      value={localTemplate?.id ?? null}
+                      onValueChange={(value) => setLocalTemplateId(value ?? "")}
+                    >
+                      <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {localSettings.templates.map((template) => (
+                            <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                ) : null}
+                {isLocal && localMode === "quick" && localTemplate ? (
+                  <div className="flex flex-col gap-2 rounded-lg bg-muted p-3 text-sm">
+                    <p><span className="text-muted-foreground">证书：</span><code>{renderDeploymentTemplate(localTemplate.pemCertificatePathTemplate, selectedOrder)}</code></p>
+                    <p><span className="text-muted-foreground">私钥：</span><code>{renderDeploymentTemplate(localTemplate.pemPrivateKeyPathTemplate, selectedOrder)}</code></p>
+                    {localTemplate.commandTemplate ? <p><span className="text-muted-foreground">命令：</span><code>{renderDeploymentTemplate(localTemplate.commandTemplate, selectedOrder)}</code></p> : null}
                   </div>
                 ) : definition ? (
                   <DynamicFields
