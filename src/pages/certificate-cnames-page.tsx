@@ -67,6 +67,131 @@ function allowedDomain(domain: string, template: CertificateDcvDelegationTemplat
   return template.allowedDomains.some((allowed) => value === allowed || value.endsWith(`.${allowed}`));
 }
 
+function selectedDcvTemplate(
+  values: Record<string, unknown>,
+  settings: CertificateSettings["dcvDelegation"] | undefined,
+  fallback: CertificateDcvDelegationTemplate | undefined,
+) {
+  if (values.dcvTemplateId === CUSTOM_TEMPLATE_VALUE) return undefined;
+  const requestedId = String(values.dcvTemplateId ?? "");
+  return requestedId
+    ? settings?.templates.find((template) => template.id === requestedId)
+    : fallback;
+}
+
+function DcvTemplateFields({
+  values,
+  onChange,
+  settings,
+  defaultTemplate,
+  domainOptions,
+  domainEditable,
+}: {
+  values: Record<string, unknown>;
+  onChange: (values: Record<string, unknown>) => void;
+  settings: CertificateSettings["dcvDelegation"] | undefined;
+  defaultTemplate: CertificateDcvDelegationTemplate | undefined;
+  domainOptions: Array<{ value: string; label: string }>;
+  domainEditable: boolean;
+}) {
+  const usesCustomTemplate = values.dcvTemplateId === CUSTOM_TEMPLATE_VALUE;
+  const selectedTemplate = selectedDcvTemplate(values, settings, defaultTemplate);
+  const domain = String(values.domain ?? "");
+  const targetDomain = domainOptions.find(
+    (option) => option.value === String(selectedTemplate?.targetDomainId),
+  )?.label;
+
+  return (
+    <FieldGroup>
+      <Field>
+        <FieldLabel>DCV 模板</FieldLabel>
+        <Select
+          items={[
+            ...(settings?.templates ?? []).map((template) => ({
+              value: template.id,
+              label: template.name,
+            })),
+            { value: CUSTOM_TEMPLATE_VALUE, label: "自定义" },
+          ]}
+          value={usesCustomTemplate
+            ? CUSTOM_TEMPLATE_VALUE
+            : (selectedTemplate?.id ?? null)}
+          onValueChange={(value) => onChange({ ...values, dcvTemplateId: value ?? "" })}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="请选择模板" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {(settings?.templates ?? []).map((template) => (
+                <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>
+              ))}
+              <SelectItem value={CUSTOM_TEMPLATE_VALUE}>自定义</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        {!domainEditable && selectedTemplate ? (
+          <FieldDescription>
+            {selectedTemplate.targetDomainId
+              ? `将使用 ${automaticRecordName(domain, selectedTemplate.targetRecordNameTemplate)}.${targetDomain ?? "目标域名"}`
+              : "请先在证书设置中为这个模板选择 CNAME 目标域名。"}
+          </FieldDescription>
+        ) : null}
+      </Field>
+      {domainEditable ? (
+        <Field>
+          <FieldLabel htmlFor="cname-domain">证书域名</FieldLabel>
+          <Input
+            id="cname-domain"
+            value={domain}
+            placeholder="example.com"
+            required
+            onChange={(event) => onChange({ ...values, domain: event.target.value })}
+          />
+          {selectedTemplate ? (
+            <FieldDescription>
+              {selectedTemplate.targetDomainId
+                ? `将创建 ${automaticRecordName(domain || "example.com", selectedTemplate.targetRecordNameTemplate)}.${targetDomain ?? "目标域名"}`
+                : "请先在证书设置中为这个模板选择 CNAME 目标域名。"}
+            </FieldDescription>
+          ) : null}
+        </Field>
+      ) : null}
+      {usesCustomTemplate ? (
+        <>
+          <Field>
+            <FieldLabel>目标域名</FieldLabel>
+            <Select
+              items={domainOptions}
+              value={String(values.targetDomainId ?? "") || null}
+              onValueChange={(value) => onChange({ ...values, targetDomainId: value ?? "" })}
+            >
+              <SelectTrigger className="w-full"><SelectValue placeholder="请选择目标域名" /></SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {domainOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={domainEditable ? "cname-record" : "edit-cname-record"}>目标主机记录</FieldLabel>
+            <Input
+              id={domainEditable ? "cname-record" : "edit-cname-record"}
+              value={String(values.targetRecordName ?? "")}
+              placeholder="example-com.cname"
+              required
+              onChange={(event) => onChange({ ...values, targetRecordName: event.target.value })}
+            />
+          </Field>
+        </>
+      ) : null}
+    </FieldGroup>
+  );
+}
+
 function CopyCode({ value, label }: { value: string; label: string }) {
   return (
     <div className="flex min-w-0 items-center gap-1">
@@ -126,8 +251,8 @@ export function CertificateCnamesPage() {
       variables.id ? "DCV 托管校验已更新" : "DCV 托管校验已添加",
     invalidate: [["certificate-cnames"]],
   });
-  const remove = useApiMutation<number, DataResponse<OperationResult>>({
-    mutationFn: (id) => apiDelete(`/api/web/v1/certificate-cnames/${id}`),
+  const remove = useApiMutation<{ id: number; domain: string }, DataResponse<OperationResult>>({
+    mutationFn: ({ id, domain }) => apiDelete(`/api/web/v1/certificate-cnames/${id}`, { domain }),
     successMessage: "DCV 托管校验已删除",
     invalidate: [["certificate-cnames"]],
   });
@@ -148,21 +273,6 @@ export function CertificateCnamesPage() {
   const defaultDcvTemplate = dcvSettings?.templates.find(
     (template) => template.id === dcvSettings.defaultTemplateId,
   ) ?? dcvSettings?.templates[0];
-  const editFields = [
-    {
-      name: "targetDomainId",
-      label: "目标域名",
-      kind: "select" as const,
-      options: domainOptions,
-      required: true,
-    },
-    {
-      name: "targetRecordName",
-      label: "目标主机记录",
-      placeholder: "_acme-challenge",
-      required: true,
-    },
-  ];
   const columns: DataColumn<CertificateCnameProxy>[] = [
     {
       key: "domain",
@@ -180,9 +290,6 @@ export function CertificateCnamesPage() {
       render: (item) => (
         <div className="min-w-56">
           <CopyCode value={item.target} label="CNAME 记录值" />
-          <p className="text-xs text-muted-foreground">
-            {item.targetRecordName}.{item.targetDomain}
-          </p>
         </div>
       ),
     },
@@ -223,25 +330,63 @@ export function CertificateCnamesPage() {
                   </DropdownMenuItem>
                 }
                 title="编辑 DCV 托管校验"
-                fields={editFields}
+                description={item.domain}
                 initialValues={{
+                  domain: item.domain,
+                  dcvTemplateId: item.templateId
+                    && (!dcvSettings
+                      || dcvSettings.templates.some((template) => template.id === item.templateId))
+                    ? item.templateId
+                    : CUSTOM_TEMPLATE_VALUE,
                   targetDomainId: String(item.targetDomainId),
                   targetRecordName: item.targetRecordName,
                 }}
                 pending={save.isPending}
-                onSubmit={(values, close) =>
+                onSubmit={(values, close) => {
+                  const usesCustomTemplate = values.dcvTemplateId === CUSTOM_TEMPLATE_VALUE;
+                  const selectedTemplate = selectedDcvTemplate(values, dcvSettings, defaultDcvTemplate);
+                  if (!usesCustomTemplate && !selectedTemplate) {
+                    toast.add({ title: "所选模板不存在，请重新选择", type: "error" });
+                    return;
+                  }
+                  if (!allowedDomain(item.domain, selectedTemplate)) {
+                    toast.add({ title: "该证书域名不在允许托管的域名范围内", type: "error" });
+                    return;
+                  }
+                  if (selectedTemplate && !selectedTemplate.targetDomainId) {
+                    toast.add({ title: "所选模板尚未配置 CNAME 目标域名", type: "error" });
+                    return;
+                  }
                   save.mutate(
                     {
                       id: item.id,
-                      body: {
-                        targetDomainId: Number(values.targetDomainId),
-                        targetRecordName: values.targetRecordName,
-                      },
+                      body: usesCustomTemplate
+                        ? {
+                            domain: item.domain,
+                            targetDomainId: Number(values.targetDomainId),
+                            targetRecordName: values.targetRecordName,
+                            dcvTemplateId: null,
+                          }
+                        : {
+                            domain: item.domain,
+                            dcvTemplateId: selectedTemplate?.id,
+                          },
                     },
                     { onSuccess: close },
-                  )
-                }
-              />
+                  );
+                }}
+              >
+                {(values, onChange) => (
+                  <DcvTemplateFields
+                    values={values}
+                    onChange={onChange}
+                    settings={dcvSettings}
+                    defaultTemplate={defaultDcvTemplate}
+                    domainOptions={domainOptions}
+                    domainEditable={false}
+                  />
+                )}
+              </FormDialog>
               <DropdownMenuItem onClick={() => check.mutate(item.id)}>
                 <CheckCircle2Icon />
                 立即验证
@@ -257,7 +402,7 @@ export function CertificateCnamesPage() {
                 description={item.domain}
                 destructive
                 pending={remove.isPending}
-                onConfirm={() => remove.mutate(item.id)}
+                onConfirm={() => remove.mutate({ id: item.id, domain: item.domain })}
               />
             </DropdownMenuGroup>
           </DropdownMenuContent>
@@ -289,10 +434,11 @@ export function CertificateCnamesPage() {
             pending={save.isPending}
             onSubmit={(values, close) => {
               const usesCustomTemplate = values.dcvTemplateId === CUSTOM_TEMPLATE_VALUE;
-              const selectedTemplate = usesCustomTemplate
-                ? undefined
-                : dcvSettings?.templates.find((template) => template.id === values.dcvTemplateId)
-                  ?? defaultDcvTemplate;
+              const selectedTemplate = selectedDcvTemplate(values, dcvSettings, defaultDcvTemplate);
+              if (!usesCustomTemplate && !selectedTemplate) {
+                toast.add({ title: "所选模板不存在，请重新选择", type: "error" });
+                return;
+              }
               if (!allowedDomain(String(values.domain ?? ""), selectedTemplate)) {
                 toast.add({ title: "该证书域名不在允许托管的域名范围内", type: "error" });
                 return;
@@ -319,93 +465,16 @@ export function CertificateCnamesPage() {
               );
             }}
           >
-            {(values, onChange) => {
-              const usesCustomTemplate = values.dcvTemplateId === CUSTOM_TEMPLATE_VALUE;
-              const selectedTemplate = usesCustomTemplate
-                ? undefined
-                : dcvSettings?.templates.find((template) => template.id === values.dcvTemplateId)
-                  ?? defaultDcvTemplate;
-              return (
-                <FieldGroup>
-                  <Field>
-                    <FieldLabel>DCV 模板</FieldLabel>
-                    <Select
-                      items={[
-                        ...(dcvSettings?.templates ?? []).map((template) => ({
-                          value: template.id,
-                          label: template.name,
-                        })),
-                        { value: CUSTOM_TEMPLATE_VALUE, label: "自定义" },
-                      ]}
-                      value={usesCustomTemplate
-                        ? CUSTOM_TEMPLATE_VALUE
-                        : (selectedTemplate?.id ?? null)}
-                      onValueChange={(value) => onChange({ ...values, dcvTemplateId: value ?? "" })}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="请选择模板" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {(dcvSettings?.templates ?? []).map((template) => (
-                            <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>
-                          ))}
-                          <SelectItem value={CUSTOM_TEMPLATE_VALUE}>自定义</SelectItem>
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                <Field>
-                  <FieldLabel htmlFor="cname-domain">证书域名</FieldLabel>
-                  <Input
-                    id="cname-domain"
-                    value={String(values.domain ?? "")}
-                    placeholder="example.com"
-                    required
-                    onChange={(event) => onChange({ ...values, domain: event.target.value })}
-                  />
-                  {selectedTemplate ? (
-                    <FieldDescription>
-                      {selectedTemplate.targetDomainId
-                        ? `将创建 ${automaticRecordName(String(values.domain ?? "") || "example.com", selectedTemplate.targetRecordNameTemplate)}.${domainOptions.find((domain) => domain.value === String(selectedTemplate.targetDomainId))?.label ?? "目标域名"}`
-                        : "请先在证书设置中为这个模板选择 CNAME 目标域名。"}
-                    </FieldDescription>
-                  ) : null}
-                </Field>
-                {usesCustomTemplate ? (
-                  <>
-                    <Field>
-                      <FieldLabel>目标域名</FieldLabel>
-                      <Select
-                        items={domainOptions}
-                        value={String(values.targetDomainId ?? "") || null}
-                        onValueChange={(value) => onChange({ ...values, targetDomainId: value ?? "" })}
-                      >
-                        <SelectTrigger className="w-full"><SelectValue placeholder="请选择目标域名" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            {domainOptions.map((domain) => (
-                              <SelectItem key={domain.value} value={domain.value}>{domain.label}</SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="cname-record">目标主机记录</FieldLabel>
-                      <Input
-                        id="cname-record"
-                        value={String(values.targetRecordName ?? "")}
-                        placeholder="example-com.cname"
-                        required
-                        onChange={(event) => onChange({ ...values, targetRecordName: event.target.value })}
-                      />
-                    </Field>
-                  </>
-                ) : null}
-              </FieldGroup>
-              );
-            }}
+            {(values, onChange) => (
+              <DcvTemplateFields
+                values={values}
+                onChange={onChange}
+                settings={dcvSettings}
+                defaultTemplate={defaultDcvTemplate}
+                domainOptions={domainOptions}
+                domainEditable
+              />
+            )}
           </FormDialog>
         }
       />

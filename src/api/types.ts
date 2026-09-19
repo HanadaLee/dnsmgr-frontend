@@ -327,6 +327,7 @@ export type CertificateDeploymentDetail = { id: number; accountId: number; accou
 export type CertificateCnameProxy = {
   id: number
   domain: string
+  templateId?: string
   challengeHost: string
   targetDomainId: number
   targetDomain: string
