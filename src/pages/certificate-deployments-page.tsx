@@ -71,6 +71,7 @@ type DeploymentForm = {
   orders: Array<{ id: number; label: string; domain?: string }>;
   accountTypes: CertificateAccountTypeDefinition[];
 };
+const CUSTOM_TEMPLATE_VALUE = "__custom__";
 
 function renderDeploymentTemplate(template: string, order: DeploymentForm["orders"][number] | undefined) {
   const domain = (order?.domain ?? "").replace(/^\*\./, "").replace(/\.$/, "");
@@ -734,7 +735,6 @@ function DeploymentEditor({
   const [orderId, setOrderId] = useState("");
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [remark, setRemark] = useState("");
-  const [localMode, setLocalMode] = useState<"quick" | "custom">("quick");
   const [localTemplateId, setLocalTemplateId] = useState("");
   const detail = useQuery({
     queryKey: ["certificate-deployment", task?.id],
@@ -763,9 +763,10 @@ function DeploymentEditor({
   );
   const selectedOrder = form?.orders.find((item) => String(item.id) === orderId);
   const isLocal = account?.type === "local";
-  const localTemplate = localSettings?.templates.find(
-    (template) => template.id === localTemplateId,
-  ) ?? localSettings?.templates[0];
+  const localTemplate = localTemplateId === CUSTOM_TEMPLATE_VALUE
+    ? undefined
+    : localSettings?.templates.find((template) => template.id === localTemplateId)
+      ?? localSettings?.templates[0];
   useEffect(() => {
     if (!open || task) return;
     const first = form?.accounts[0];
@@ -776,16 +777,17 @@ function DeploymentEditor({
     setOrderId(String(requestedOrder?.id ?? form?.orders[0]?.id ?? ""));
     const type = form?.accountTypes.find((item) => item.type === first?.type);
     setConfig(type ? defaultsForFields(type.taskFields) : {});
-    setLocalMode(first?.type === "local" ? (localSettings?.defaultMode ?? "quick") : "custom");
-    setLocalTemplateId(localSettings?.defaultTemplateId ?? "");
+    setLocalTemplateId(first?.type === "local"
+      ? (localSettings?.defaultTemplateId ?? "")
+      : CUSTOM_TEMPLATE_VALUE);
     setRemark("");
-  }, [form, initialOrderId, localSettings?.defaultMode, localSettings?.defaultTemplateId, open, task]);
+  }, [form, initialOrderId, localSettings?.defaultTemplateId, open, task]);
   useEffect(() => {
     if (!detail.data) return;
     setAccountId(String(detail.data.accountId));
     setOrderId(String(detail.data.orderId));
     setConfig(detail.data.config);
-    setLocalMode("custom");
+    setLocalTemplateId(CUSTOM_TEMPLATE_VALUE);
     setRemark(detail.data.remark ?? "");
   }, [detail.data]);
   return (
@@ -799,7 +801,7 @@ function DeploymentEditor({
               {
                 accountId: Number(accountId),
                 orderId: Number(orderId),
-                config: isLocal && localMode === "quick" && localTemplate
+                config: isLocal && localTemplate
                   ? {
                       ...config,
                       format: "pem",
@@ -846,8 +848,9 @@ function DeploymentEditor({
                         (item) => item.type === selected?.type,
                       );
                       setConfig(type ? defaultsForFields(type.taskFields) : {});
-                      setLocalMode(selected?.type === "local" ? (localSettings?.defaultMode ?? "quick") : "custom");
-                      setLocalTemplateId(localSettings?.defaultTemplateId ?? "");
+                      setLocalTemplateId(selected?.type === "local"
+                        ? (localSettings?.defaultTemplateId ?? "")
+                        : CUSTOM_TEMPLATE_VALUE);
                     }}
                   >
                     <SelectTrigger className="w-full">
@@ -895,36 +898,33 @@ function DeploymentEditor({
                 ) : null}
                 {isLocal ? (
                   <Field>
-                    <FieldLabel>配置模式</FieldLabel>
-                    <Select items={[{ value: "quick", label: "快速模式" }, { value: "custom", label: "自定义模式" }]} value={localMode} onValueChange={(value) => setLocalMode((value ?? "quick") as "quick" | "custom")}>
-                      <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                      <SelectContent><SelectGroup><SelectItem value="quick">快速模式</SelectItem><SelectItem value="custom">自定义模式</SelectItem></SelectGroup></SelectContent>
-                    </Select>
-                  </Field>
-                ) : null}
-                {isLocal && localMode === "quick" && localSettings ? (
-                  <Field>
                     <FieldLabel>部署模板</FieldLabel>
                     <Select
-                      items={localSettings.templates.map((template) => ({
-                        value: template.id,
-                        label: template.name,
-                      }))}
-                      value={localTemplate?.id ?? null}
+                      items={[
+                        ...(localSettings?.templates ?? []).map((template) => ({
+                          value: template.id,
+                          label: template.name,
+                        })),
+                        { value: CUSTOM_TEMPLATE_VALUE, label: "自定义" },
+                      ]}
+                      value={localTemplateId === CUSTOM_TEMPLATE_VALUE
+                        ? CUSTOM_TEMPLATE_VALUE
+                        : (localTemplate?.id ?? null)}
                       onValueChange={(value) => setLocalTemplateId(value ?? "")}
                     >
                       <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          {localSettings.templates.map((template) => (
+                          {(localSettings?.templates ?? []).map((template) => (
                             <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>
                           ))}
+                          <SelectItem value={CUSTOM_TEMPLATE_VALUE}>自定义</SelectItem>
                         </SelectGroup>
                       </SelectContent>
                     </Select>
                   </Field>
                 ) : null}
-                {isLocal && localMode === "quick" && localTemplate ? (
+                {isLocal && localTemplate ? (
                   <div className="flex flex-col gap-2 rounded-lg bg-muted p-3 text-sm">
                     <p><span className="text-muted-foreground">证书：</span><code>{renderDeploymentTemplate(localTemplate.pemCertificatePathTemplate, selectedOrder)}</code></p>
                     <p><span className="text-muted-foreground">私钥：</span><code>{renderDeploymentTemplate(localTemplate.pemPrivateKeyPathTemplate, selectedOrder)}</code></p>

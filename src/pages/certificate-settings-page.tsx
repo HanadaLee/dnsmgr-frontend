@@ -156,7 +156,7 @@ export function CertificateSettingsPanel() {
             ...source,
             id,
             name: uniqueTemplateName(
-              '策略',
+              '模板',
               current.dcvDelegation.templates.map((template) => template.name),
             ),
           }],
@@ -318,24 +318,6 @@ export function CertificateSettingsPanel() {
           <CardContent>
             <FieldGroup>
               <Field>
-                <FieldLabel>默认配置模式</FieldLabel>
-                <Select
-                  items={[{ value: 'quick', label: '快速模式' }, { value: 'custom', label: '自定义模式' }]}
-                  value={values.localDeployment.defaultMode}
-                  onValueChange={(value) => updateLocal({
-                    defaultMode: (value ?? 'quick') as 'quick' | 'custom',
-                  })}
-                >
-                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="quick">快速模式</SelectItem>
-                      <SelectItem value="custom">自定义模式</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
                 <FieldLabel>当前模板</FieldLabel>
                 <div className="flex items-center gap-2">
                   <Select
@@ -403,13 +385,13 @@ export function CertificateSettingsPanel() {
 
         <Card>
           <CardHeader>
-            <CardTitle>DCV 托管策略</CardTitle>
+            <CardTitle>DCV 托管模板</CardTitle>
             <CardDescription>管理多套域名限制和目标记录拼接规则。</CardDescription>
           </CardHeader>
           <CardContent>
             <FieldGroup>
               <Field>
-                <FieldLabel>当前策略</FieldLabel>
+                <FieldLabel>当前模板</FieldLabel>
                 <div className="flex items-center gap-2">
                   <Select
                     items={values.dcvDelegation.templates.map((template) => ({ value: template.id, label: template.name }))}
@@ -425,16 +407,16 @@ export function CertificateSettingsPanel() {
                       </SelectGroup>
                     </SelectContent>
                   </Select>
-                  <Button type="button" variant="outline" size="icon" aria-label="添加 DCV 托管策略" disabled={values.dcvDelegation.templates.length >= 20} onClick={addDcvTemplate}>
+                  <Button type="button" variant="outline" size="icon" aria-label="添加 DCV 托管模板" disabled={values.dcvDelegation.templates.length >= 20} onClick={addDcvTemplate}>
                     <PlusIcon />
                   </Button>
                   <ConfirmAction
                     trigger={
-                      <Button type="button" variant="outline" size="icon" aria-label="删除当前 DCV 托管策略" disabled={values.dcvDelegation.templates.length === 1}>
+                      <Button type="button" variant="outline" size="icon" aria-label="删除当前 DCV 托管模板" disabled={values.dcvDelegation.templates.length === 1}>
                         <Trash2Icon />
                       </Button>
                     }
-                    title="删除 DCV 托管策略？"
+                    title="删除 DCV 托管模板？"
                     description={selectedDcvTemplate?.name ?? ''}
                     destructive
                     onConfirm={removeDcvTemplate}
@@ -444,11 +426,11 @@ export function CertificateSettingsPanel() {
               {selectedDcvTemplate ? (
                 <>
                   <Field>
-                    <FieldLabel htmlFor="dcv-template-name">策略名称</FieldLabel>
+                    <FieldLabel htmlFor="dcv-template-name">模板名称</FieldLabel>
                     <Input id="dcv-template-name" value={selectedDcvTemplate.name} maxLength={64} required onChange={(event) => updateDcvTemplate({ name: event.target.value })} />
                   </Field>
                   <Field orientation="horizontal">
-                    <FieldLabel htmlFor="dcv-template-default">设为默认策略</FieldLabel>
+                    <FieldLabel htmlFor="dcv-template-default">设为默认模板</FieldLabel>
                     <Switch id="dcv-template-default" checked={values.dcvDelegation.defaultTemplateId === selectedDcvTemplate.id} onCheckedChange={(checked) => { if (checked) updateDcv({ defaultTemplateId: selectedDcvTemplate.id }) }} />
                   </Field>
                   <Field>

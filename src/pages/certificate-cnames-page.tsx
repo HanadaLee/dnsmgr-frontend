@@ -52,6 +52,7 @@ import { formatDateTime } from "@/lib/format";
 
 type CnameForm = { domains: Array<{ id: number; name: string }> };
 type CnameCheck = { status: "verified" | "unverified" };
+const CUSTOM_TEMPLATE_VALUE = "__custom__";
 
 function automaticRecordName(domain: string, template: string) {
   const value = domain.trim().toLowerCase().replace(/^\*\./, "").replace(/\.$/, "");
@@ -288,9 +289,11 @@ export function CertificateCnamesPage() {
             }}
             pending={save.isPending}
             onSubmit={(values, close) => {
-              const selectedTemplate = dcvSettings?.templates.find(
-                (template) => template.id === values.dcvTemplateId,
-              ) ?? defaultDcvTemplate;
+              const usesCustomTemplate = values.dcvTemplateId === CUSTOM_TEMPLATE_VALUE;
+              const selectedTemplate = usesCustomTemplate
+                ? undefined
+                : dcvSettings?.templates.find((template) => template.id === values.dcvTemplateId)
+                  ?? defaultDcvTemplate;
               if (!allowedDomain(String(values.domain ?? ""), selectedTemplate)) {
                 toast.add({ title: "该证书域名不在允许托管的域名范围内", type: "error" });
                 return;
@@ -303,7 +306,7 @@ export function CertificateCnamesPage() {
                     targetRecordName: selectedTemplate?.forceTargetRecordNameTemplate
                       ? automaticRecordName(String(values.domain ?? ""), selectedTemplate.targetRecordNameTemplate)
                       : values.targetRecordName,
-                    dcvTemplateId: selectedTemplate?.id,
+                    dcvTemplateId: usesCustomTemplate ? null : selectedTemplate?.id,
                   },
                 },
                 { onSuccess: close },
@@ -311,19 +314,26 @@ export function CertificateCnamesPage() {
             }}
           >
             {(values, onChange) => {
-              const selectedTemplate = dcvSettings?.templates.find(
-                (template) => template.id === values.dcvTemplateId,
-              ) ?? defaultDcvTemplate;
+              const usesCustomTemplate = values.dcvTemplateId === CUSTOM_TEMPLATE_VALUE;
+              const selectedTemplate = usesCustomTemplate
+                ? undefined
+                : dcvSettings?.templates.find((template) => template.id === values.dcvTemplateId)
+                  ?? defaultDcvTemplate;
               return (
                 <FieldGroup>
                   <Field>
-                    <FieldLabel>DCV 托管策略</FieldLabel>
+                    <FieldLabel>DCV 模板</FieldLabel>
                     <Select
-                      items={(dcvSettings?.templates ?? []).map((template) => ({
-                        value: template.id,
-                        label: template.name,
-                      }))}
-                      value={selectedTemplate?.id ?? null}
+                      items={[
+                        ...(dcvSettings?.templates ?? []).map((template) => ({
+                          value: template.id,
+                          label: template.name,
+                        })),
+                        { value: CUSTOM_TEMPLATE_VALUE, label: "自定义" },
+                      ]}
+                      value={usesCustomTemplate
+                        ? CUSTOM_TEMPLATE_VALUE
+                        : (selectedTemplate?.id ?? null)}
                       onValueChange={(value) => {
                         const domain = String(values.domain ?? "");
                         const currentRecord = String(values.targetRecordName ?? "");
@@ -333,26 +343,30 @@ export function CertificateCnamesPage() {
                         const nextTemplate = dcvSettings?.templates.find(
                           (template) => template.id === value,
                         );
+                        const nextUsesCustomTemplate = value === CUSTOM_TEMPLATE_VALUE;
                         onChange({
                           ...values,
                           dcvTemplateId: value ?? "",
                           targetRecordName:
-                            selectedTemplate?.forceTargetRecordNameTemplate
-                            || !currentRecord
-                            || currentRecord === currentAutomatic
-                              ? automaticRecordName(domain, nextTemplate?.targetRecordNameTemplate ?? "{domainWithDashes}.cname")
-                              : currentRecord,
+                            nextUsesCustomTemplate
+                              ? currentRecord
+                              : (nextTemplate?.forceTargetRecordNameTemplate
+                                || !currentRecord
+                                || (!usesCustomTemplate && currentRecord === currentAutomatic))
+                                ? automaticRecordName(domain, nextTemplate?.targetRecordNameTemplate ?? "{domainWithDashes}.cname")
+                                : currentRecord,
                         });
                       }}
                     >
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="请选择托管策略" />
+                        <SelectValue placeholder="请选择模板" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
                           {(dcvSettings?.templates ?? []).map((template) => (
                             <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>
                           ))}
+                          <SelectItem value={CUSTOM_TEMPLATE_VALUE}>自定义</SelectItem>
                         </SelectGroup>
                       </SelectContent>
                     </Select>
@@ -374,10 +388,13 @@ export function CertificateCnamesPage() {
                         ...values,
                         domain,
                         targetRecordName:
-                          !currentRecord ||
-                          currentRecord === automaticRecordName(previous, selectedTemplate?.targetRecordNameTemplate ?? "{domainWithDashes}.cname")
-                            ? automaticRecordName(domain, selectedTemplate?.targetRecordNameTemplate ?? "{domainWithDashes}.cname")
-                            : currentRecord,
+                          usesCustomTemplate
+                            ? currentRecord
+                            : (selectedTemplate?.forceTargetRecordNameTemplate
+                              || !currentRecord
+                              || currentRecord === automaticRecordName(previous, selectedTemplate?.targetRecordNameTemplate ?? "{domainWithDashes}.cname"))
+                              ? automaticRecordName(domain, selectedTemplate?.targetRecordNameTemplate ?? "{domainWithDashes}.cname")
+                              : currentRecord,
                       });
                     }}
                   />
@@ -419,7 +436,7 @@ export function CertificateCnamesPage() {
                       })
                     }
                   />
-                  {selectedTemplate?.forceTargetRecordNameTemplate ? <FieldDescription>所选托管策略已强制使用目标记录模板。</FieldDescription> : null}
+                  {selectedTemplate?.forceTargetRecordNameTemplate ? <FieldDescription>所选模板已强制使用目标记录模板。</FieldDescription> : null}
                 </Field>
               </FieldGroup>
               );

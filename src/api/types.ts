@@ -357,7 +357,6 @@ export type CertificateSettings = {
   deploymentWindow: { startHour: number; endHour: number }
   notifications: { email: CertificateNotificationMode; wechat: CertificateNotificationMode; telegram: CertificateNotificationMode; robotWebhook: CertificateNotificationMode; customWebhook: CertificateNotificationMode }
   localDeployment: {
-    defaultMode: 'quick' | 'custom'
     defaultTemplateId: string
     templates: CertificateLocalDeploymentTemplate[]
   }
