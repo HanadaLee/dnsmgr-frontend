@@ -91,7 +91,7 @@ location / {
 
 ## GitHub Actions 镜像发布
 
-每次推送 `main` 都会由 GitHub Actions 在原生 `linux/amd64`、`linux/arm64` Runner 上执行 lint、测试和生产构建。只有根目录 `VERSION` 变化且尚未存在同名标签时，才向 Harbor、Docker Hub 和 GHCR 发布 `${VERSION}`、`latest` 多架构 manifest，并创建 GitHub tag/release。
+每次推送 `main` 都会由 GitHub Actions 在原生 `linux/amd64`、`linux/arm64` Runner 上执行 lint、测试和生产构建。当前 `VERSION` 尚无同名标签时，才向 Harbor、Docker Hub 和 GHCR 发布 `${VERSION}`、`latest` 多架构 manifest，并创建 GitHub tag/release。
 
 镜像分别为 `registry.hanada.info/hanada/dnsmgr-frontend`、`docker.io/hanadalee/dnsmgr-frontend` 和 `ghcr.io/hanadalee/dnsmgr-frontend`。GitHub 仓库需要配置 `HARBOR_USERNAME`、`HARBOR_PASSWORD`、`DOCKERHUB_USERNAME`、`DOCKERHUB_PASSWORD`；GHCR 使用仓库自动提供的 `GITHUB_TOKEN`。根目录 `VERSION` 必须与 `package.json` 完全一致。
 

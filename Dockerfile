@@ -36,7 +36,8 @@ RUN rm -rf /docker-entrypoint.d /etc/nginx/conf.d /etc/nginx/templates \
     && rm -f /docker-entrypoint.sh /usr/share/nginx/html/50x.html \
     && mkdir -p /tmp/client_body /tmp/proxy /tmp/fastcgi /tmp/uwsgi /tmp/scgi \
     && chown -R nginx:nginx /tmp/client_body /tmp/proxy /tmp/fastcgi /tmp/uwsgi /tmp/scgi \
-    && nginx -t
+    && nginx -t \
+    && rm -f /tmp/nginx.pid
 
 USER nginx
 
