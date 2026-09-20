@@ -2,6 +2,8 @@
 
 基于 React、TypeScript、Vite、Tailwind CSS v4 和 shadcn/ui（Nova / Base UI）的独立 dnsmgr 前端。它只调用同源稳定 API，不依赖原 PHP 模板、jQuery 或 Bootstrap Table。
 
+> 兼容性要求：生产环境应通过 dnsmgr-helper 接入 [HanadaLee/dnsmgr](https://github.com/HanadaLee/dnsmgr) 的 `ext` 分支。frontend、helper 与该分支的 AxisNow、证书及兼容接口同步维护；直接搭配原版 `main` 可能因能力或字段缺失产生不可预期的问题。
+
 当前实现：
 
 - 透明登录状态恢复：会话过期直接进入 `/login`，界面不展示认证协议或兼容层信息
@@ -57,7 +59,7 @@ Vite 会同时调整资源地址，React Router 会从同一个 base path 读取
 仓库提供面向最终根路径部署的多阶段镜像。Node.js 构建阶段执行 lint、单元测试和 Vite build；运行层使用官方 `nginx:stable-alpine-slim`，不包含 Node.js、npm、源码、开发依赖或构建缓存，只保留 nginx 最小运行环境、配置和 `dist` 静态文件：
 
 ```powershell
-docker build --build-arg APP_VERSION=0.2.11 -t dnsmgr-frontend:local .
+docker build --build-arg APP_VERSION=0.2.28 -t dnsmgr-frontend:local .
 $env:DNSMGR_FRONTEND_IMAGE = 'dnsmgr-frontend:local'
 $env:DNSMGR_FRONTEND_PORT = '19103'
 docker compose up -d
@@ -87,7 +89,11 @@ location / {
 
 完整站点参考配置见 `dnsmgr-helper/deploy/http_dns.hanada.info.conf.example`。
 
-GitLab CI 使用与 dnsmgr-helper 相同的 `debian-x86_64`、`debian-aarch64` Runner 和 `HARBOR_USERNAME`、`HARBOR_PASSWORD` 变量，发布 `${VERSION}` 与 `latest` 多架构 manifest。根目录 `VERSION` 必须与 `package.json` 版本一致。
+## GitHub Actions 镜像发布
+
+每次推送 `main` 都会由 GitHub Actions 在原生 `linux/amd64`、`linux/arm64` Runner 上执行 lint、测试和生产构建。只有根目录 `VERSION` 变化且尚未存在同名标签时，才向 Harbor、Docker Hub 和 GHCR 发布 `${VERSION}`、`latest` 多架构 manifest，并创建 GitHub tag/release。
+
+镜像分别为 `registry.hanada.info/hanada/dnsmgr-frontend`、`docker.io/hanadalee/dnsmgr-frontend` 和 `ghcr.io/hanadalee/dnsmgr-frontend`。GitHub 仓库需要配置 `HARBOR_USERNAME`、`HARBOR_PASSWORD`、`DOCKERHUB_USERNAME`、`DOCKERHUB_PASSWORD`；GHCR 使用仓库自动提供的 `GITHUB_TOKEN`。根目录 `VERSION` 必须与 `package.json` 完全一致。
 
 ## 验证
 
