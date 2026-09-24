@@ -435,9 +435,12 @@ export function AxisNowRulesPage({
       key: "status",
       label: "生效状态",
       render: (rule) => (
-        <Badge variant={rule.status === "active" ? "default" : "secondary"}>
-          {rule.status === "active" ? "启用" : "暂停"}
-        </Badge>
+        <div className="flex flex-wrap gap-1.5">
+          <Badge variant={rule.status === "active" ? "default" : "secondary"}>
+            {rule.status === "active" ? "启用" : "暂停"}
+          </Badge>
+          {rule.autoPauseOnEmpty ? <Badge variant="outline">空池自动暂停</Badge> : null}
+        </div>
       ),
     },
     {
@@ -892,6 +895,7 @@ function RuleDialog({
   const [geoIsp, setGeoIsp] = useState("default");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<"active" | "paused">("active");
+  const [autoPauseOnEmpty, setAutoPauseOnEmpty] = useState(false);
   const [poolType, setPoolType] = useState<PoolType>("all_valid_eips");
   const [poolValues, setPoolValues] = useState<Set<string>>(new Set());
   const [poolText, setPoolText] = useState("");
@@ -976,6 +980,7 @@ function RuleDialog({
     setGeoIsp("default");
     setDescription("");
     setStatus("active");
+    setAutoPauseOnEmpty(false);
     setPoolType(domain?.recordType === "CNAME" ? "domain" : "all_valid_eips");
     setPoolValues(new Set());
     setPoolText("");
@@ -1014,6 +1019,7 @@ function RuleDialog({
     setGeoIsp(current.geoIsp || "default");
     setDescription(current.description ?? "");
     setStatus(current.status);
+    setAutoPauseOnEmpty(current.autoPauseOnEmpty);
     setPoolType(detectedType);
     setPoolValues(new Set(stringArray(group.eip_uuids ?? group.tag_uuids)));
     setPoolText(stringArray(group.ips ?? group.domains).join("\n"));
@@ -1085,6 +1091,7 @@ function RuleDialog({
                 geoIsp,
                 description: description || null,
                 status,
+                autoPauseOnEmpty,
                 poolType,
                 poolValues: poolValueList,
                 advancedPool: advancedPool || null,
@@ -1185,6 +1192,15 @@ function RuleDialog({
                       </SelectGroup>
                     </SelectContent>
                   </Select>
+                </Field>
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldTitle>无可用资源时自动暂停</FieldTitle>
+                    <FieldDescription>
+                      当前地址池无可用资源时暂停本规则；同时启用故障备份调度时，仍会按探测阈值切换到备份池。
+                    </FieldDescription>
+                  </FieldContent>
+                  <Switch checked={autoPauseOnEmpty} onCheckedChange={setAutoPauseOnEmpty} />
                 </Field>
               </div>
               <Field>
