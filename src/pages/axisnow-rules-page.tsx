@@ -88,6 +88,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiMutation } from "@/hooks/use-api-mutation";
+import { isAxisNowRuleSubmitDisabled } from "@/lib/axisnow-rule-form";
 import { formatDateTime } from "@/lib/format";
 
 type PoolType = "all_valid_eips" | "eip_tag" | "eip" | "ip" | "domain";
@@ -1078,6 +1079,14 @@ function RuleDialog({
   const hasProbeTemplate = Boolean(probeUuid || automation.data?.hasProbeTemplate);
   const automationHasError = tidePoolInvalid || failoverPoolInvalid || (failoverEnabled && !hasProbeTemplate);
   const shouldSaveAutomation = Boolean(rule && (automationDirty || automation.data?.configured));
+  const submitDisabled = isAxisNowRuleSubmitDisabled({
+    editing: Boolean(rule),
+    saving: save.isPending || automationSave.isPending,
+    canSubmit,
+    automationPending: automation.isPending,
+    automationLoaded: Boolean(automation.data),
+    automationHasError,
+  });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -1585,7 +1594,7 @@ function RuleDialog({
             >
               取消
             </Button>
-            <Button type="submit" disabled={save.isPending || automationSave.isPending || automation.isPending || !canSubmit || (Boolean(rule) && !automation.data) || automationHasError}>
+            <Button type="submit" disabled={submitDisabled}>
               {save.isPending || automationSave.isPending ? <Spinner data-icon="inline-start" /> : null}确认
             </Button>
           </DialogFooter>
