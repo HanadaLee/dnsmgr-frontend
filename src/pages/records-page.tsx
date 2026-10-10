@@ -6,7 +6,6 @@ import {
   CloudIcon,
   CopyIcon,
   ExternalLinkIcon,
-  Layers3Icon,
   MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
@@ -28,6 +27,8 @@ import { PageHeader } from '@/components/page-header'
 import { QueryError } from '@/components/query-error'
 import { QingCloudRecords } from '@/components/qingcloud-records'
 import { RecordExcelTools } from '@/components/record-excel-tools'
+import { RecordBatchToolbar } from '@/components/record-batch-toolbar'
+import { RecordStatusToggle } from '@/components/record-status-toggle'
 import { StatusBadge } from '@/components/status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -45,7 +46,6 @@ import { toast } from '@/components/ui/toast'
 import { useApiMutation } from '@/hooks/use-api-mutation'
 import { bulkRecordTextForSave, recordValueForDisplay, recordValueForSave, recordValuesForSave } from '@/lib/dns-record-value'
 import { formatDateTime } from '@/lib/format'
-import { buildRecordBatchBody } from '@/lib/record-batch'
 
 type WeightedRecordSet = { id: string; lookupName: string; subdomain: string; type: string; recordCount: number; enabled: boolean; lineAlgorithms: Array<{ lineId: string; enabled: boolean }> }
 
@@ -145,7 +145,7 @@ function RecordsContent({ domainId }: { domainId: number }) {
   const create = useApiMutation<Record<string, unknown>, DataResponse<OperationResult>>({ mutationFn: (body) => apiPost(`/api/web/v1/domains/${domainId}/records`, body), successMessage: '解析记录已添加', invalidate: [...invalidate] })
   const update = useApiMutation<{ id: string; body: Record<string, unknown> }, DataResponse<OperationResult>>({ mutationFn: ({ id, body }) => apiPatch(`/api/web/v1/domains/${domainId}/records/${encodeURIComponent(id)}`, body), successMessage: '解析记录已更新', invalidate: [...invalidate] })
   const remove = useApiMutation<DnsRecord, DataResponse<OperationResult>>({ mutationFn: (record) => apiDelete(`/api/web/v1/domains/${domainId}/records/${encodeURIComponent(record.id)}`, { current: snapshot(record, options.data?.providerType) }), successMessage: '解析记录已删除', invalidate: [...invalidate] })
-  const status = useApiMutation<DnsRecord, DataResponse<OperationResult>>({ mutationFn: (record) => apiPatch(`/api/web/v1/domains/${domainId}/records/${encodeURIComponent(record.id)}/status`, { enabled: record.status !== 'enabled', current: snapshot(record, options.data?.providerType) }), successMessage: '记录状态已更新', invalidate: [...invalidate] })
+  const status = useApiMutation<{ record: DnsRecord; enabled: boolean }, DataResponse<OperationResult>>({ mutationFn: ({ record, enabled }) => apiPatch(`/api/web/v1/domains/${domainId}/records/${encodeURIComponent(record.id)}/status`, { enabled, current: snapshot(record, options.data?.providerType) }), successMessage: '记录状态已更新', invalidate: [...invalidate] })
   const remark = useApiMutation<{ id: string; remark: string | null }, DataResponse<OperationResult>>({ mutationFn: ({ id, remark }) => apiPatch(`/api/web/v1/domains/${domainId}/records/${encodeURIComponent(id)}/remark`, { remark }), successMessage: '记录备注已更新', invalidate: [...invalidate] })
   const check = useApiMutation<DnsRecord, DataResponse<RecordCheckResult>>({ mutationFn: (record) => apiPost(`/api/web/v1/domains/${domainId}/records/${encodeURIComponent(record.id)}/check`, { name: record.name, type: record.type, value: record.values?.[0] ?? record.value }), successMessage: ({ data }) => `${data.message ?? ({ active: '解析结果匹配', mismatch: '解析结果不匹配', not_found: '未查询到解析记录' }[data.status])}${data.actual.length ? ` · 实际值：${data.actual.join('、')}` : ''}` })
   const batch = useApiMutation<Record<string, unknown>, DataResponse<OperationResult>>({ mutationFn: (body) => apiPost(`/api/web/v1/domains/${domainId}/records/batch`, body), successMessage: (result) => result.message ?? '批量操作已完成', invalidate: [...invalidate], onSuccess: () => setSelected(new Set()) })
@@ -164,7 +164,7 @@ function RecordsContent({ domainId }: { domainId: number }) {
     { key: 'ttl', label: 'TTL', render: (record) => record.ttl ?? '—' },
     ...(options.data?.capabilities.recordWeight ? [{ key: 'weight', label: '权重', render: (record: DnsRecord) => record.weight ?? '—' }] : []),
     ...(options.data?.capabilities.recordRemark !== 'none' ? [{ key: 'remark', label: '备注', render: (record: DnsRecord) => record.remark || '—' }] : []),
-    { key: 'status', label: '状态', render: (record) => options.data?.capabilities.recordStatus ? <button aria-label={`切换 ${record.name} 状态`} onClick={() => status.mutate(record)}><StatusBadge value={record.status} /></button> : <StatusBadge value={record.status} /> },
+    { key: 'status', label: '状态', render: (record) => <RecordStatusToggle record={record} available={Boolean(options.data?.capabilities.recordStatus)} pending={status.isPending || batch.isPending} onChange={(enabled) => status.mutate({ record, enabled })} /> },
     { key: 'updated', label: '更新时间', render: (record) => formatDateTime(record.updatedAt) },
     { key: 'actions', label: '', className: 'w-12', render: (record) => <RecordActions record={record} domainName={domain.data?.name} options={options.data} updatePending={update.isPending} remarkPending={remark.isPending} deletePending={remove.isPending} onUpdate={(body, close) => update.mutate({ id: record.id, body: { ...body, current: snapshot(record, options.data?.providerType) } }, { onSuccess: close })} onRemark={(nextRemark, close) => remark.mutate({ id: record.id, remark: nextRemark }, { onSuccess: close })} onCheck={() => check.mutate(record)} onDelete={() => remove.mutate(record)} /> },
   ]
@@ -185,7 +185,7 @@ function RecordsContent({ domainId }: { domainId: number }) {
           {options.data?.capabilities.hierarchicalRecords ? <QingCloudRecords domainId={domainId} options={options.data} /> : <Card><CardContent className="flex flex-col gap-4">
             <form className="grid gap-2 md:grid-cols-2 xl:grid-cols-[9rem_minmax(14rem,1fr)_10rem_12rem_9rem_10rem_8rem_auto]" onSubmit={(event) => { event.preventDefault(); setPage(1); setSelected(new Set()); setQueryText(search.trim()) }}><Select items={[{ value: 'keyword', label: '关键字' }, { value: 'subdomain', label: '主机记录' }, { value: 'value', label: '记录值' }]} value={searchBy} onValueChange={(value) => { setSearchBy(value ?? 'keyword'); setPage(1); setSelected(new Set()) }}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="keyword">关键字</SelectItem><SelectItem value="subdomain">主机记录</SelectItem><SelectItem value="value">记录值</SelectItem></SelectGroup></SelectContent></Select><div className="relative"><SearchIcon className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={searchBy === 'subdomain' ? '输入主机记录' : searchBy === 'value' ? '输入完整记录值' : '输入关键字'} /></div><Select items={[{ value: 'all', label: '全部类型' }, ...(options.data?.recordTypes ?? []).map((value) => ({ value, label: value }))]} value={typeFilter} onValueChange={(value) => { setTypeFilter(value ?? 'all'); setPage(1); setSelected(new Set()) }}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="all">全部类型</SelectItem>{(options.data?.recordTypes ?? []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectGroup></SelectContent></Select><Select items={[{ value: 'all', label: '全部线路' }, ...(options.data?.lines ?? []).map((line) => ({ value: line.id, label: line.label }))]} value={lineFilter} onValueChange={(value) => { setLineFilter(value ?? 'all'); setPage(1); setSelected(new Set()) }}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="all">全部线路</SelectItem>{(options.data?.lines ?? []).map((line) => <SelectItem key={line.id} value={line.id}>{line.label}</SelectItem>)}</SelectGroup></SelectContent></Select><Select items={[{ value: 'all', label: '全部状态' }, { value: 'enabled', label: '已启用' }, { value: 'disabled', label: '已停用' }]} value={statusFilter} onValueChange={(value) => { setStatusFilter(value ?? 'all'); setPage(1); setSelected(new Set()) }}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="all">全部状态</SelectItem><SelectItem value="enabled">已启用</SelectItem><SelectItem value="disabled">已停用</SelectItem></SelectGroup></SelectContent></Select><Select items={[{ value: 'name', label: '按主机记录' }, { value: 'type', label: '按类型' }, { value: 'line', label: '按线路' }, { value: 'value', label: '按记录值' }, { value: 'updatedAt', label: '按更新时间' }]} value={sort} onValueChange={(value) => { setSort(value ?? 'name'); setPage(1); setSelected(new Set()) }}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="name">按主机记录</SelectItem><SelectItem value="type">按类型</SelectItem><SelectItem value="line">按线路</SelectItem><SelectItem value="value">按记录值</SelectItem><SelectItem value="updatedAt">按更新时间</SelectItem></SelectGroup></SelectContent></Select><Select items={[{ value: 'asc', label: '升序' }, { value: 'desc', label: '降序' }]} value={order} onValueChange={(value) => { setOrder(value ?? 'asc'); setPage(1); setSelected(new Set()) }}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="asc">升序</SelectItem><SelectItem value="desc">降序</SelectItem></SelectGroup></SelectContent></Select><Button variant="outline" type="submit">搜索</Button></form>
             {options.data?.capabilities.recordGroups ? <div className="flex items-center gap-3"><span className="text-sm text-muted-foreground">记录分组</span><Select items={[{ value: 'all', label: '全部分组' }, ...(groups.data ?? []).map((group) => ({ value: groupSelectValue(group.id), label: group.name }))]} value={groupFilter} onValueChange={(value) => { setGroupFilter(value ?? 'all'); setPage(1); setSelected(new Set()) }}><SelectTrigger className="w-56"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="all">全部分组</SelectItem>{(groups.data ?? []).map((group) => <SelectItem key={group.id || 'root'} value={groupSelectValue(group.id)}>{group.name}</SelectItem>)}</SelectGroup></SelectContent></Select></div> : null}
-            {selected.size ? <BatchToolbar records={selectedRecords} options={options.data} groups={groups.data ?? []} pending={batch.isPending} onBatch={(body, close) => batch.mutate(body, { onSuccess: close })} /> : null}
+            {selected.size ? <RecordBatchToolbar snapshots={selectedRecords.map((record) => snapshot(record, options.data?.providerType))} options={options.data} groups={groups.data ?? []} pending={batch.isPending || status.isPending} onBatch={(body, close) => batch.mutate(body, { onSuccess: close })} /> : null}
             {records.isError ? <QueryError error={records.error} retry={() => void records.refetch()} /> : records.isPending ? <LoadingTable /> : <DataTable rows={records.data.data} columns={columns} rowKey={(record) => record.id} selected={selected} onSelectedChange={setSelected} emptyTitle="暂无解析记录" />}
             {records.data ? <ListPagination meta={records.data.meta} onPageChange={(next) => { setSelected(new Set()); setPage(next) }} /> : null}
           </CardContent></Card>}
@@ -206,25 +206,6 @@ function RecordActions({ record, domainName, options, updatePending, remarkPendi
     {domainName && visitableRecordTypes.has(record.type) ? <DropdownMenuItem render={<a href={recordVisitUrl(record, domainName)} target="_blank" rel="noreferrer" />}><ExternalLinkIcon />访问域名</DropdownMenuItem> : null}
     <ConfirmAction trigger={<DropdownMenuItem variant="destructive" closeOnClick={false}><Trash2Icon />删除</DropdownMenuItem>} title="删除解析记录？" description={`${record.name} ${record.type} 将被永久删除。`} destructive pending={deletePending} onConfirm={onDelete} />
   </DropdownMenuGroup></DropdownMenuContent></DropdownMenu>
-}
-
-function BatchToolbar({ records, options, groups, pending, onBatch }: { records: DnsRecord[]; options?: RecordOptions; groups: RecordGroup[]; pending: boolean; onBatch: (body: Record<string, unknown>, close: () => void) => void }) {
-  const snapshots = records.map((record) => snapshot(record, options?.providerType))
-  const actions = [
-    ...(options?.capabilities.recordStatus ? [{ value: 'status-enable', label: '启用记录' }, { value: 'status-disable', label: '停用记录' }] : []),
-    ...(options?.capabilities.recordRemark === 'separate' ? [{ value: 'remark', label: '设置备注' }] : []),
-    ...(options?.capabilities.recordGroups ? [{ value: 'group', label: '移动分组' }] : []),
-    { value: 'value', label: '修改记录值' }, { value: 'line', label: '修改线路' }, { value: 'delete', label: '删除记录' },
-  ]
-  const fields = [
-    { name: 'action', label: '批量操作', kind: 'select' as const, options: actions, required: true },
-    { name: 'remark', label: '备注', kind: 'textarea' as const, visible: (values: Record<string, unknown>) => values.action === 'remark' },
-    { name: 'groupId', label: '分组', kind: 'select' as const, options: groups.map((group) => ({ value: groupSelectValue(group.id), label: group.name })), required: true, visible: (values: Record<string, unknown>) => values.action === 'group' },
-    { name: 'type', label: '记录类型', kind: 'select' as const, options: (options?.recordTypes ?? []).map((value) => ({ value, label: value })), required: true, visible: (values: Record<string, unknown>) => values.action === 'value' },
-    { name: 'value', label: '记录值', kind: 'textarea' as const, required: true, visible: (values: Record<string, unknown>) => values.action === 'value' },
-    { name: 'lineId', label: '线路', kind: 'select' as const, options: (options?.lines ?? []).map((line) => ({ value: line.id, label: line.label })), required: true, visible: (values: Record<string, unknown>) => values.action === 'line' },
-  ]
-  return <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3"><span className="mr-auto text-sm">已选择 {records.length} 条记录</span><FormDialog trigger={<Button size="sm" variant="outline"><Layers3Icon data-icon="inline-start" />批量操作</Button>} title="批量操作解析记录" fields={fields} pending={pending} onSubmit={(values, close) => onBatch(buildRecordBatchBody(values, snapshots, options?.providerType), close)} /></div>
 }
 
 function AdvancedRecords({ domainId, domainName, options, groups, aliases, weights, bulk, aliasCreate, aliasDelete, weightStatus, onImported }: {

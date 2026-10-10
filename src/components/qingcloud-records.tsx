@@ -21,7 +21,7 @@ import { FormDialog, type FormFieldSpec } from '@/components/form-dialog'
 import { ListPagination } from '@/components/list-pagination'
 import { LoadingTable } from '@/components/loading-table'
 import { QueryError } from '@/components/query-error'
-import { StatusBadge } from '@/components/status-badge'
+import { RecordStatusToggle } from '@/components/record-status-toggle'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -98,7 +98,7 @@ export function QingCloudRecords({ domainId, options }: { domainId: number; opti
   const create = useApiMutation<Record<string, unknown>, DataResponse<OperationResult>>({ mutationFn: (body) => apiPost(`/api/web/v1/domains/${domainId}/records`, body), successMessage: '解析记录已添加', invalidate: [...invalidate] })
   const update = useApiMutation<{ record: DnsRecord; body: Record<string, unknown> }, DataResponse<OperationResult>>({ mutationFn: ({ record, body }) => apiPatch(`/api/web/v1/domains/${domainId}/records/${encodeURIComponent(record.id)}`, { ...body, current: snapshot(record) }), successMessage: '解析记录已更新', invalidate: [...invalidate] })
   const remove = useApiMutation<DnsRecord, DataResponse<OperationResult>>({ mutationFn: (record) => apiDelete(`/api/web/v1/domains/${domainId}/records/${encodeURIComponent(record.id)}`, record.type === 'UNKNOWN' ? undefined : { current: snapshot(record) }), successMessage: '解析记录已删除', invalidate: [...invalidate] })
-  const status = useApiMutation<DnsRecord, DataResponse<OperationResult>>({ mutationFn: (record) => apiPatch(`/api/web/v1/domains/${domainId}/records/${encodeURIComponent(record.id)}/status`, { enabled: record.status !== 'enabled', current: snapshot(record) }), successMessage: '记录状态已更新', invalidate: [...invalidate] })
+  const status = useApiMutation<{ record: DnsRecord; enabled: boolean }, DataResponse<OperationResult>>({ mutationFn: ({ record, enabled }) => apiPatch(`/api/web/v1/domains/${domainId}/records/${encodeURIComponent(record.id)}/status`, { enabled, current: snapshot(record) }), successMessage: '记录状态已更新', invalidate: [...invalidate] })
   const remark = useApiMutation<{ id: string; remark: string | null }, DataResponse<OperationResult>>({ mutationFn: ({ id, remark: value }) => apiPatch(`/api/web/v1/domains/${domainId}/records/${encodeURIComponent(id)}/remark`, { remark: value }), successMessage: '主机记录备注已更新', invalidate: [...invalidate] })
   const check = useApiMutation<DnsRecord, DataResponse<RecordCheckResult>>({ mutationFn: (record) => apiPost(`/api/web/v1/domains/${domainId}/records/${encodeURIComponent(record.id)}/check`, { name: record.name, type: record.type, value: record.values?.[0] ?? record.value }), successMessage: ({ data }) => `${data.message ?? ({ active: '解析结果匹配', mismatch: '解析结果不匹配', not_found: '未查询到解析记录' }[data.status])}${data.actual.length ? ` · 实际值：${data.actual.join('、')}` : ''}` })
 
@@ -126,7 +126,7 @@ export function QingCloudRecords({ domainId, options }: { domainId: number; opti
                 onCreate={(body, close) => create.mutate(body, { onSuccess: close })}
                 onUpdate={(record, body, close) => update.mutate({ record, body }, { onSuccess: close })}
                 onDelete={(record) => remove.mutate(record)}
-                onStatus={(record) => status.mutate(record)}
+                onStatus={(record, enabled) => status.mutate({ record, enabled })}
                 onRemark={(value, close) => remark.mutate({ id: parent.id, remark: value }, { onSuccess: close })}
                 onCheck={(record) => check.mutate(record)}
               />
@@ -151,7 +151,7 @@ function QingCloudParent({ domainId, parent, options, createPending, updatePendi
   onCreate: (body: Record<string, unknown>, close: () => void) => void
   onUpdate: (record: DnsRecord, body: Record<string, unknown>, close: () => void) => void
   onDelete: (record: DnsRecord) => void
-  onStatus: (record: DnsRecord) => void
+  onStatus: (record: DnsRecord, enabled: boolean) => void
   onRemark: (remark: string | null, close: () => void) => void
   onCheck: (record: DnsRecord) => void
 }) {
@@ -169,7 +169,7 @@ function QingCloudParent({ domainId, parent, options, createPending, updatePendi
     { key: 'mode', label: '模式', render: (record) => record.type === 'A' || record.type === 'CNAME' ? <div className="flex items-center gap-1.5"><span>{modeLabels[record.mode ?? 1] ?? '普通'}</span>{record.mode === 3 ? <Badge variant="secondary">{record.weight ?? 0}</Badge> : null}</div> : '—' },
     { key: 'value', label: '记录值', render: (record) => <div className="flex max-w-md items-center gap-1"><code className="min-w-0 flex-1 truncate" title={record.value}>{record.value}{record.type === 'MX' ? ` | ${record.mxPriority ?? 10}` : ''}</code><Button size="icon-sm" variant="ghost" aria-label={`复制 ${record.name} 的记录值`} onClick={() => { void navigator.clipboard.writeText(record.value); toast.add({ title: '记录值已复制', type: 'success' }) }}><CopyIcon /></Button></div> },
     { key: 'ttl', label: 'TTL', render: (record) => record.ttl ?? '—' },
-    { key: 'status', label: '状态', render: (record) => <Button size="sm" variant="ghost" disabled={statusPending} onClick={() => onStatus(record)}><StatusBadge value={record.status} /></Button> },
+    { key: 'status', label: '状态', render: (record) => <RecordStatusToggle record={record} available={options.capabilities.recordStatus} pending={statusPending} onChange={(enabled) => onStatus(record, enabled)} /> },
     { key: 'actions', label: '', className: 'w-12', render: (record) => <ChildActions record={record} parentId={parent.id} options={options} updatePending={updatePending} deletePending={deletePending} onUpdate={(body, close) => onUpdate(record, body, close)} onDelete={() => onDelete(record)} onCheck={() => onCheck(record)} /> },
   ]
 
