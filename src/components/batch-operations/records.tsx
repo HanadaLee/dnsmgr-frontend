@@ -29,7 +29,7 @@ import { downloadSheet, RECORD_HEADERS } from '@/lib/batch-files'
 import { recordValueForDisplay } from '@/lib/dns-record-value'
 import { queryDomainRecords, type GlobalRecord, type RecordFilters } from '@/lib/record-search'
 
-type RecordTask = 'query-record' | 'modify-record' | 'delete-record' | 'export-record'
+type RecordTask = 'modify-record' | 'delete-record' | 'export-record'
 const fieldLabels = {
   name: '主机记录',
   type: '记录类型',
@@ -262,6 +262,7 @@ export function BatchRecords({
           <CardTitle>2. 选择记录</CardTitle>
           <CardDescription>
             按所选域名查询记录，条件均可留空。记录值支持包含匹配，不需要输入完整 IP 或域名。
+            {task === 'modify-record' ? '可以只查询、不修改；查询不会更改解析，勾选记录后才可编辑，并需预览确认后执行。' : null}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">

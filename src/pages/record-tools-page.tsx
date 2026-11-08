@@ -17,6 +17,7 @@ import { QueryError } from '@/components/query-error'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toast'
 import {
   BATCH_LIMIT,
@@ -52,7 +53,7 @@ function BatchWorkspace({ domains }: { domains: DomainSummary[] }) {
   const tasks = BATCH_TASKS.filter(
     (task) => session.capabilities.domainAccounts || (task.value !== 'add-domain' && task.value !== 'delete-domain'),
   )
-  const task = tasks.some((item) => item.value === requestedTask) ? requestedTask : 'query-record'
+  const task = tasks.some((item) => item.value === requestedTask) ? requestedTask : 'modify-record'
   const scope = selectedDomains(selection, domains)
   const invalid = !!scope.errors.length || !scope.domains.length || scope.domains.length > BATCH_LIMIT
   const scopeKey = JSON.stringify(selection)
@@ -93,26 +94,17 @@ function BatchWorkspace({ domains }: { domains: DomainSummary[] }) {
   }
 
   return (
-    <div className="grid items-start gap-5 lg:grid-cols-[10rem_minmax(0,1fr)]">
-      <nav
-        aria-label="批量操作类型"
-        className="flex gap-1 overflow-x-auto rounded-xl border bg-card p-2 lg:sticky lg:top-20 lg:flex-col"
-      >
-        {tasks.map((item) => (
-          <Button
-            key={item.value}
-            type="button"
-            variant={task === item.value ? 'secondary' : 'ghost'}
-            className="shrink-0 justify-start"
-            aria-current={task === item.value ? 'page' : undefined}
-            disabled={busy}
-            onClick={() => changeTask(item.value)}
-          >
-            {item.label}
-          </Button>
-        ))}
-      </nav>
-      <div className="flex min-w-0 flex-col gap-5">
+    <Tabs value={task} onValueChange={changeTask} className="min-w-0 gap-5">
+      <div className="min-w-0 overflow-x-auto pb-1">
+        <TabsList variant="line" aria-label="批量操作类型">
+          {tasks.map((item) => (
+            <TabsTrigger key={item.value} value={item.value} disabled={busy}>
+              {item.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </div>
+      <TabsContent key={task} value={task} className="flex min-w-0 flex-col gap-5">
         {task !== 'add-domain' && task !== 'log' ? (
           <DomainScope domains={domains} value={selection} onChange={setSelection} disabled={busy} />
         ) : null}
@@ -133,10 +125,10 @@ function BatchWorkspace({ domains }: { domains: DomainSummary[] }) {
             onComplete={onComplete}
           />
         ) : null}
-        {['query-record', 'modify-record', 'delete-record', 'export-record'].includes(task) ? (
+        {task === 'modify-record' || task === 'delete-record' || task === 'export-record' ? (
           <BatchRecords
             key={`${task}:${scopeKey}`}
-            task={task as 'query-record' | 'modify-record' | 'delete-record' | 'export-record'}
+            task={task}
             domains={scope.domains}
             disabled={invalid}
             busy={busy}
@@ -219,8 +211,8 @@ function BatchWorkspace({ domains }: { domains: DomainSummary[] }) {
             </CardContent>
           </Card>
         ) : null}
-      </div>
-    </div>
+      </TabsContent>
+    </Tabs>
   )
 }
 

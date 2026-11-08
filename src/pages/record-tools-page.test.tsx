@@ -27,11 +27,17 @@ function renderPage(path = '/batch-operations') {
 }
 
 describe('batch operations architecture', () => {
-  it('defaults to optional-filter batch querying instead of global value search', () => {
+  it('defaults to querying inside modify records with horizontal line tabs', () => {
     const markup = renderPage()
     expect(markup).toContain('批量操作')
     expect(markup).toContain('aria-label="批量操作类型"')
-    expect(markup).toContain('批量查询')
+    expect(markup).toContain('role="tablist"')
+    expect(markup).toContain('data-orientation="horizontal"')
+    expect(markup).toContain('data-variant="line"')
+    expect(markup).toMatch(/role="tab"[^>]*aria-selected="true"[^>]*>修改记录<\/button>/)
+    expect(markup).not.toContain('批量查询')
+    expect(markup).toContain('可以只查询、不修改')
+    expect(markup).not.toContain('lg:flex-col')
     expect(markup).toContain('指定域名')
     expect(markup).toContain('指定分组')
     expect(markup).toContain('全部域名')
@@ -43,6 +49,16 @@ describe('batch operations architecture', () => {
     expect(markup).not.toContain('智能解析')
     expect(markup).not.toContain('高级解析工具')
   })
+
+  it.each(['task=query-record', 'tab=search', 'task=unknown'])(
+    'opens modify records for old query links and unknown tasks: %s',
+    (query) => {
+      const markup = renderPage(`/batch-operations?${query}`)
+      expect(markup).toContain('可以只查询、不修改')
+      expect(markup).not.toContain('批量查询')
+      expect(markup).toContain('查询记录')
+    },
+  )
 
   it('offers independent record rows for adding and keeps legacy links usable', () => {
     const markup = renderPage('/record-tools?tab=batch-add')

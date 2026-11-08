@@ -23,7 +23,6 @@ export type BatchTask =
   | 'add-record'
   | 'modify-record'
   | 'delete-record'
-  | 'query-record'
   | 'import-record'
   | 'export-record'
   | 'export-domain'
@@ -34,7 +33,6 @@ export const BATCH_TASKS: Array<{ value: BatchTask; label: string }> = [
   { value: 'add-record', label: '添加记录' },
   { value: 'modify-record', label: '修改记录' },
   { value: 'delete-record', label: '删除记录' },
-  { value: 'query-record', label: '批量查询' },
   { value: 'import-record', label: '导入记录' },
   { value: 'export-record', label: '导出记录' },
   { value: 'export-domain', label: '导出域名' },
@@ -45,8 +43,8 @@ export const BATCH_TASKS: Array<{ value: BatchTask; label: string }> = [
 export function batchTaskFromQuery(value: string | null): BatchTask {
   if (value === 'batch-add' || value === 'smart') return value === 'smart' ? 'import-record' : 'add-record'
   if (value === 'batch-edit') return 'modify-record'
-  if (value === 'search') return 'query-record'
-  return BATCH_TASKS.some((task) => task.value === value) ? (value as BatchTask) : 'query-record'
+  if (value === 'search' || value === 'query-record') return 'modify-record'
+  return BATCH_TASKS.some((task) => task.value === value) ? (value as BatchTask) : 'modify-record'
 }
 
 export function normalizedDomain(value: string): string {
