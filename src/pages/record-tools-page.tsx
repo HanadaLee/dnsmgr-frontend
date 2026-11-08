@@ -14,19 +14,24 @@ import { StatusBadge } from '@/components/status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
+import { Field, FieldDescription, FieldGroup, FieldLabel, FieldTitle } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { Progress } from '@/components/ui/progress'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/toast'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { bulkRecordTextForSave, recordValueForDisplay, recordValueForSave, recordValuesForSave } from '@/lib/dns-record-value'
+import { searchDomainRecords, type GlobalRecord } from '@/lib/record-search'
 import {
   hostForManagedDomain,
   inferRecordType,
   managedDomainCandidates,
+  type RecordValueMatchMode,
 } from '@/lib/record-tools'
 
 type ParsedRecord = {
@@ -46,7 +51,6 @@ type ParsedRecord = {
   message?: string
 }
 
-type GlobalRecord = DnsRecord & { key: string; domainId: number; domainName: string; provider: string; providerType: string }
 type DomainBatchResult = { id: number; domain: string; provider: string; status: 'pending' | 'running' | 'success' | 'failed'; message?: string }
 
 const globalEditRecordTypes = [
@@ -230,38 +234,10 @@ function SmartParse({ domains }: { domains: DomainSummary[] }) {
   </div>
 }
 
-async function searchDomainRecords(domain: DomainSummary, value: string): Promise<GlobalRecord[]> {
-  async function load(parameters: Record<string, string | number>) {
-    const records: DnsRecord[] = []
-    let page = 1
-    while (true) {
-      const response = await apiGet<PageResponse<DnsRecord>>(`/api/web/v1/domains/${domain.id}/records`, { ...parameters, page, pageSize: 100 })
-      records.push(...response.data)
-      if (records.length >= response.meta.total || response.data.length === 0) return records
-      page += 1
-    }
-  }
-  const matchesValue = (record: DnsRecord) => {
-    const expected = recordValueForDisplay(domain.provider.type, record.type, value)
-    const actual = record.values?.length ? record.values : [record.value]
-    return actual.some((item) => recordValueForDisplay(domain.provider.type, record.type, item) === expected)
-  }
-  let matches: DnsRecord[]
-  if (domain.provider.type.toLowerCase() === 'qingcloud') {
-    const parents = await load({})
-    const children: DnsRecord[] = []
-    for (const parent of parents) children.push(...await load({ subdomain: parent.id }))
-    matches = children.filter(matchesValue)
-  } else if (domain.provider.type.toLowerCase() === 'huawei') {
-    matches = (await load({})).filter(matchesValue)
-  } else {
-    matches = (await load({ value })).filter(matchesValue)
-  }
-  return matches.map((record) => ({ ...record, key: `${domain.id}:${record.id}`, domainId: domain.id, domainName: domain.name, provider: domain.provider.label, providerType: domain.provider.type }))
-}
-
 function GlobalSearch({ domains }: { domains: DomainSummary[] }) {
   const [value, setValue] = useState('')
+  const [matchMode, setMatchMode] = useState<RecordValueMatchMode>('exact')
+  const [hasSearched, setHasSearched] = useState(false)
   const [results, setResults] = useState<GlobalRecord[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [searching, setSearching] = useState(false)
@@ -270,22 +246,31 @@ function GlobalSearch({ domains }: { domains: DomainSummary[] }) {
   const [status, setStatus] = useState('尚未搜索')
   const stop = useRef(false)
 
+  function clearSearchResults() {
+    setResults([])
+    setSelected(new Set())
+    setProgress(0)
+    setStatus('尚未搜索')
+    setHasSearched(false)
+  }
+
   async function search() {
     const keyword = value.trim()
-    if (!keyword) return
+    if (!keyword || searching || editing) return
     stop.current = false; setSearching(true); setResults([]); setSelected(new Set()); setProgress(0)
+    setHasSearched(true)
     const found: GlobalRecord[] = []
     let failed = 0
     for (let index = 0; index < domains.length; index += 1) {
       if (stop.current) break
       const domain = domains[index]
       setStatus(`正在搜索 ${domain.name}（${index + 1} / ${domains.length}）`)
-      try { found.push(...await searchDomainRecords(domain, keyword)); setResults([...found]) } catch { failed += 1 }
+      try { found.push(...await searchDomainRecords(domain, keyword, matchMode)); setResults([...found]) } catch { failed += 1 }
       setProgress(Math.round(((index + 1) / domains.length) * 100))
     }
     setSearching(false)
     setStatus(`${stop.current ? '搜索已停止' : '搜索完成'}，找到 ${found.length} 条${failed ? `，${failed} 个域名失败` : ''}`)
-    setSelected(new Set(found.map((record) => record.key)))
+    setSelected(matchMode === 'exact' ? new Set(found.map((record) => record.key)) : new Set())
   }
 
   async function batchEdit(values: Record<string, unknown>, close: () => void) {
@@ -324,7 +309,67 @@ function GlobalSearch({ domains }: { domains: DomainSummary[] }) {
     { key: 'status', label: '状态', render: (record) => <StatusBadge value={record.status} /> },
   ]
 
-  return <Card><CardHeader><CardTitle>按记录值搜索全部域名</CardTitle><CardDescription>逐个查询所有托管域名并执行精确值匹配；可选择结果跨域批量改为新的类型和值。</CardDescription></CardHeader><CardContent className="flex flex-col gap-4"><form className="flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); void search() }}><div className="relative flex-1"><SearchIcon className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={value} onChange={(event) => setValue(event.target.value)} placeholder="例如 192.0.2.1" disabled={searching} /></div><Button type="submit" disabled={!value.trim() || searching}>{searching ? <Spinner data-icon="inline-start" /> : <SearchIcon data-icon="inline-start" />}搜索全部域名</Button>{searching ? <Button type="button" variant="outline" onClick={() => { stop.current = true; setStatus('正在停止，请等待当前域名完成…') }}><SquareIcon data-icon="inline-start" />停止</Button> : null}</form>{searching ? <Progress value={progress} /> : null}<div className="flex flex-wrap items-center gap-3"><span className="text-sm text-muted-foreground">{status}</span>{selected.size ? <FormDialog trigger={<Button className="ml-auto" size="sm" variant="outline"><PencilIcon data-icon="inline-start" />批量修改 {selected.size} 条</Button>} title="跨域批量修改解析记录" fields={[{ name: 'type', label: '新记录类型', kind: 'select', options: globalEditRecordTypes, required: true }, { name: 'value', label: '新记录值', kind: 'textarea', required: true }]} initialValues={{ type: results.find((record) => selected.has(record.key))?.type ?? 'A' }} pending={editing} onSubmit={(values, close) => void batchEdit(values, close)} /> : null}</div>{results.length ? <DataTable rows={results} columns={columns} rowKey={(record) => record.key} selected={selected} onSelectedChange={setSelected} emptyTitle="未找到匹配记录" /> : !searching ? <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">输入完整记录值开始搜索</div> : null}</CardContent></Card>
+  return <Card>
+    <CardHeader>
+      <CardTitle>按记录值搜索全部域名</CardTitle>
+      <CardDescription>逐个查询所有托管域名，支持精确匹配或按片段模糊匹配；可勾选结果跨域批量修改类型和值。</CardDescription>
+    </CardHeader>
+    <CardContent className="flex flex-col gap-4">
+      <form className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void search() }}>
+        <Field orientation="horizontal" data-disabled={searching || editing}>
+          <FieldTitle id="global-record-match-mode">匹配方式</FieldTitle>
+          <ToggleGroup
+            aria-labelledby="global-record-match-mode"
+            variant="outline"
+            spacing={0}
+            value={[matchMode]}
+            disabled={searching || editing}
+            onValueChange={(values) => {
+              const nextMode = values[0]
+              if ((nextMode === 'exact' || nextMode === 'contains') && nextMode !== matchMode) {
+                setMatchMode(nextMode)
+                clearSearchResults()
+              }
+            }}
+          >
+            <ToggleGroupItem value="exact">精确匹配</ToggleGroupItem>
+            <ToggleGroupItem value="contains">模糊匹配（包含）</ToggleGroupItem>
+          </ToggleGroup>
+        </Field>
+        <FieldGroup className="gap-2 sm:flex-row sm:items-end">
+          <Field data-disabled={searching || editing}>
+            <FieldLabel className="sr-only" htmlFor="global-record-value">记录值</FieldLabel>
+            <InputGroup>
+              <InputGroupInput
+                id="global-record-value"
+                aria-describedby="global-record-search-help"
+                value={value}
+                onChange={(event) => { setValue(event.target.value); clearSearchResults() }}
+                placeholder={matchMode === 'exact' ? '例如 192.0.2.1' : '例如 192.0.2 或 example.net'}
+                disabled={searching || editing}
+              />
+              <InputGroupAddon><SearchIcon /></InputGroupAddon>
+            </InputGroup>
+          </Field>
+          <Button type="submit" disabled={!value.trim() || searching || editing}>
+            {searching ? <Spinner data-icon="inline-start" /> : <SearchIcon data-icon="inline-start" />}搜索全部域名
+          </Button>
+          {searching ? <Button type="button" variant="outline" onClick={() => { stop.current = true; setStatus('正在停止，请等待当前域名完成…') }}><SquareIcon data-icon="inline-start" />停止</Button> : null}
+        </FieldGroup>
+        <FieldDescription id="global-record-search-help">
+          {matchMode === 'exact'
+            ? '输入完整记录值进行精确匹配。'
+            : '匹配包含该片段的记录值，不区分大小写；按字面匹配，不使用通配符或正则表达式。需读取全部记录，结果请手动勾选。'}
+        </FieldDescription>
+      </form>
+      {searching ? <Progress value={progress} /> : null}
+      <div className="flex flex-wrap items-center gap-3">
+        <span role="status" className="text-sm text-muted-foreground">{status}</span>
+        {selected.size ? <FormDialog trigger={<Button className="ml-auto" size="sm" variant="outline" disabled={searching || editing}><PencilIcon data-icon="inline-start" />批量修改 {selected.size} 条</Button>} title="跨域批量修改解析记录" fields={[{ name: 'type', label: '新记录类型', kind: 'select', options: globalEditRecordTypes, required: true }, { name: 'value', label: '新记录值', kind: 'textarea', required: true }]} initialValues={{ type: results.find((record) => selected.has(record.key))?.type ?? 'A' }} pending={editing} onSubmit={(values, close) => void batchEdit(values, close)} /> : null}
+      </div>
+      {results.length ? <DataTable rows={results} columns={columns} rowKey={(record) => record.key} selected={selected} onSelectedChange={setSelected} emptyTitle="未找到匹配记录" /> : !searching ? <Empty className="border py-12"><EmptyHeader><EmptyTitle>{hasSearched ? '未找到匹配记录' : '输入记录值开始搜索'}</EmptyTitle><EmptyDescription>{hasSearched ? '请调整关键词或切换匹配方式后重试。' : '选择模糊匹配可搜索部分 IP、域名或其他记录值片段。'}</EmptyDescription></EmptyHeader></Empty> : null}
+    </CardContent>
+  </Card>
 }
 
 function CrossDomainBatch({ mode, domains, initialIds }: { mode: 'add' | 'edit'; domains: DomainSummary[]; initialIds: Set<string> }) {

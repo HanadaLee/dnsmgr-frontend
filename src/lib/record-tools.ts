@@ -26,6 +26,18 @@ export function inferRecordType(value: string): string {
   return 'A'
 }
 
-export function recordMatchesValue(record: Pick<DnsRecord, 'value' | 'values'>, keyword: string): boolean {
-  return record.values?.includes(keyword) ?? record.value === keyword
+export type RecordValueMatchMode = 'exact' | 'contains'
+
+export function recordMatchesValue(
+  record: Pick<DnsRecord, 'value' | 'values'>,
+  keyword: string,
+  mode: RecordValueMatchMode = 'exact',
+): boolean {
+  if (!keyword) return false
+  const values = record.values?.length ? record.values : [record.value]
+  if (mode === 'contains') {
+    const expected = keyword.toLowerCase()
+    return values.some((value) => value.toLowerCase().includes(expected))
+  }
+  return values.includes(keyword)
 }
