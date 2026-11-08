@@ -59,6 +59,7 @@ export default function App() {
                   <Route path="domains" element={<CapabilityRoute capability="domains" excludeDomainUser><DomainsPage /></CapabilityRoute>} />
                   <Route path="domains/:domainId" element={<CapabilityRoute capability="domains"><RecordsPage /></CapabilityRoute>} />
                   <Route path="record-tools" element={<CapabilityRoute capability="domains" excludeDomainUser><RecordToolsPage /></CapabilityRoute>} />
+                  <Route path="batch-operations" element={<CapabilityRoute capability="domains" excludeDomainUser><RecordToolsPage /></CapabilityRoute>} />
                   <Route path="accounts" element={<CapabilityRoute capability={['domainAccounts', 'certificates']}><AccountsPage /></CapabilityRoute>} />
                   <Route path="domain-categories" element={<CapabilityRoute capability="domainCategories"><DomainCategoriesPage /></CapabilityRoute>} />
                   <Route path="monitoring" element={<CapabilityRoute capability="monitoring"><MonitoringPage /></CapabilityRoute>} />

@@ -227,8 +227,8 @@ export function DomainsPage() {
           {canManageDomains && selected.size ? (
             <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-3">
               <span className="mr-auto text-sm">已选择 {selected.size} 项</span>
-              <Button size="sm" variant="outline" nativeButton={false} render={<Link to={`/record-tools?tab=batch-add&domains=${selectedIds.join(',')}`} />}><PlusIcon data-icon="inline-start" />添加解析</Button>
-              <Button size="sm" variant="outline" nativeButton={false} render={<Link to={`/record-tools?tab=batch-edit&domains=${selectedIds.join(',')}`} />}><PencilIcon data-icon="inline-start" />修改解析</Button>
+              <Button size="sm" variant="outline" nativeButton={false} render={<Link to={`/batch-operations?task=add-record&domains=${selectedIds.join(',')}`} />}><PlusIcon data-icon="inline-start" />添加解析</Button>
+              <Button size="sm" variant="outline" nativeButton={false} render={<Link to={`/batch-operations?task=modify-record&domains=${selectedIds.join(',')}`} />}><PencilIcon data-icon="inline-start" />修改解析</Button>
               <FormDialog
                 trigger={<Button size="sm" variant="outline"><TagsIcon data-icon="inline-start" />设置分类</Button>}
                 title="批量设置分类"
