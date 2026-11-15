@@ -762,7 +762,7 @@ function OrderEditor({
     setPrivateKey("");
   }, [form, open, order]);
   useEffect(() => {
-    if (!detail.data) return;
+    if (!open || !detail.data) return;
     setMode(detail.data.mode);
     setAccountId(String(detail.data.account?.id ?? ""));
     setKeyType(detail.data.keyType === "ECC" ? "ECC" : "RSA");
@@ -770,7 +770,7 @@ function OrderEditor({
     setDomains(detail.data.domains.join("\n"));
     setCertificate(detail.data.certificate ?? "");
     setPrivateKey(detail.data.privateKey ?? "");
-  }, [detail.data]);
+  }, [detail.data, open]);
   const sizes =
     form?.keyOptions[keyType] ??
     (keyType === "RSA" ? [2048, 3072] : [256, 384]);

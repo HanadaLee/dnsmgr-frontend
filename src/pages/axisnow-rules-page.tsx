@@ -1003,7 +1003,7 @@ function RuleDialog({
   }, [domain?.recordType, open]);
 
   useEffect(() => {
-    if (!detail.data) return;
+    if (!open || !detail.data) return;
     const current = detail.data;
     const conf = recordValue(recordValue(current.action).conf);
     const pool = recordValue(conf.address_pool);

@@ -102,10 +102,10 @@ function TagDialog({ trigger, accounts, tag }: { trigger: React.ReactElement; ac
   }, [accounts, open, tag])
 
   useEffect(() => {
-    if (!detail.data) return
+    if (!open || !detail.data) return
     setName(detail.data.name)
     setDescription(detail.data.description ?? '')
-  }, [detail.data])
+  }, [detail.data, open])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

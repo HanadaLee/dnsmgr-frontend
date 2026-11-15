@@ -16,7 +16,23 @@ env:
   GHCR_IMAGE: ghcr.io/hanadalee/dnsmgr-frontend
 
 jobs:
+  browser-tests:
+    name: Browser form regressions
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+
   build:
+    needs: browser-tests
     name: Test ${{ matrix.platform }}
     strategy:
       fail-fast: false

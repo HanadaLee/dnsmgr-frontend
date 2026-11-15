@@ -1,7 +1,7 @@
 {
   "name": "dnsmgr-frontend",
   "private": true,
-  "version": "0.2.33",
+  "version": "0.2.34",
   "description": "Modern shadcn/ui web console for dnsmgr",
   "type": "module",
   "scripts": {
@@ -9,6 +9,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint src",
     "test": "vitest run",
+    "test:browser": "tsc -p tsconfig.browser.json && playwright test",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -31,6 +32,7 @@
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",

@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+/test-results/
+/playwright-report/
 *.local
 
 # Local visual scratch asset; it is not part of the production bundle.

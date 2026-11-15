@@ -185,13 +185,14 @@ export function DomainsPage() {
                 { name: 'wechat', label: '微信公众号通知', kind: 'switch' },
                 { name: 'telegram', label: 'Telegram 通知', kind: 'switch' },
                 { name: 'robotWebhook', label: '群机器人 Webhook', kind: 'switch' },
+                { name: 'qqbot', label: 'QQ 机器人', kind: 'switch' },
                 { name: 'customWebhook', label: '自定义 Webhook', kind: 'switch' },
               ]}
               pending={saveExpirySettings.isPending}
               onSubmit={(values, close) => {
                 const reminderDays = String(values.reminderDays ?? '').split(',').map((value) => value.trim()).filter(Boolean).map(Number)
                 if (reminderDays.some((value) => !Number.isSafeInteger(value) || value < 0)) { toast.add({ title: '提醒天数格式不正确', description: '请填写非负整数，并用英文逗号分隔。', type: 'error' }); return }
-                saveExpirySettings.mutate({ reminderDays, notifications: { email: Boolean(values.email), wechat: Boolean(values.wechat), telegram: Boolean(values.telegram), robotWebhook: Boolean(values.robotWebhook), customWebhook: Boolean(values.customWebhook) } }, { onSuccess: close })
+                saveExpirySettings.mutate({ reminderDays, notifications: { email: Boolean(values.email), wechat: Boolean(values.wechat), telegram: Boolean(values.telegram), qqbot: Boolean(values.qqbot), robotWebhook: Boolean(values.robotWebhook), customWebhook: Boolean(values.customWebhook) } }, { onSuccess: close })
               }}
             /> : <Button variant="outline" disabled><BellRingIcon data-icon="inline-start" />提醒设置</Button>}
             <ImportDomainsDialog accounts={accountOptions} />

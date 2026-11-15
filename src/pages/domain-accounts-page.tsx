@@ -7,7 +7,7 @@ import { apiDelete, apiGet, apiPost, apiPut } from '@/api/client'
 import type { DataResponse, DnsProviderDefinition, DomainAccountDetail, DomainAccountSummary, OperationResult, PageResponse } from '@/api/types'
 import { ConfirmAction } from '@/components/confirm-action'
 import { DataTable, type DataColumn } from '@/components/data-table'
-import { defaultsForFields, DynamicFields } from '@/components/dynamic-fields'
+import { defaultsForFields, DynamicFields, serializeDynamicFields } from '@/components/dynamic-fields'
 import { ListPagination } from '@/components/list-pagination'
 import { LoadingTable } from '@/components/loading-table'
 import { QueryError } from '@/components/query-error'
@@ -130,11 +130,11 @@ function AccountDialog({ trigger, account, providers }: { trigger: ReactElement;
   }, [account, open, providers])
 
   useEffect(() => {
-    if (!detail.data) return
+    if (!open || !detail.data) return
     setProviderType(detail.data.provider.type)
     setRemark(detail.data.remark ?? '')
-    setConfig(detail.data.config)
-  }, [detail.data])
+    setConfig({ ...defaultsForFields(providers.find((item) => item.type === detail.data.provider.type)?.fields ?? []), ...detail.data.config })
+  }, [detail.data, open, providers])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -142,7 +142,7 @@ function AccountDialog({ trigger, account, providers }: { trigger: ReactElement;
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-xl">
         <form onSubmit={(event) => {
           event.preventDefault()
-          mutation.mutate({ providerType, config, remark: remark || null }, { onSuccess: () => setOpen(false) })
+          mutation.mutate({ providerType, config: serializeDynamicFields(provider?.fields ?? [], config, event.currentTarget), remark: remark || null }, { onSuccess: () => setOpen(false) })
         }}>
           <DialogHeader><DialogTitle>{account ? '编辑域名账户' : '添加域名账户'}</DialogTitle><DialogDescription>凭据会在服务端验证后保存，敏感字段不会出现在账户列表中。</DialogDescription></DialogHeader>
           <div className="py-5">

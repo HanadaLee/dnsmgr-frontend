@@ -77,6 +77,7 @@ export type DomainExpirySettings = {
     email: boolean
     wechat: boolean
     telegram: boolean
+    qqbot: boolean
     robotWebhook: boolean
     customWebhook: boolean
   }
@@ -113,7 +114,7 @@ export type ProviderFieldOption = { value: string; label: string }
 export type ProviderField = {
   key: string
   label: string
-  control: 'input' | 'textarea' | 'select' | 'radio' | 'checkbox' | 'checkboxes'
+  control: 'input' | 'textarea' | 'select' | 'radio' | 'checkbox' | 'checkboxes' | 'tags'
   required: boolean
   disabled: boolean
   sensitive: boolean
@@ -184,7 +185,7 @@ export type MonitoringOverview = {
   lastRunAt?: string
   lastError?: string
   swooleInstalled: boolean
-  notifications: { email: boolean; wechat: boolean; telegram: boolean; robotWebhook: boolean; customWebhook: boolean }
+  notifications: { email: boolean; wechat: boolean; telegram: boolean; qqbot: boolean; robotWebhook: boolean; customWebhook: boolean }
 }
 export type MonitoringTask = {
   id: number
@@ -355,7 +356,7 @@ export type CertificateDcvDelegationTemplate = {
 export type CertificateSettings = {
   renewBeforeDays: number
   deploymentWindow: { startHour: number; endHour: number }
-  notifications: { email: CertificateNotificationMode; wechat: CertificateNotificationMode; telegram: CertificateNotificationMode; robotWebhook: CertificateNotificationMode; customWebhook: CertificateNotificationMode }
+  notifications: { email: CertificateNotificationMode; wechat: CertificateNotificationMode; telegram: CertificateNotificationMode; qqbot: CertificateNotificationMode; robotWebhook: CertificateNotificationMode; customWebhook: CertificateNotificationMode }
   localDeployment: {
     defaultTemplateId: string
     templates: CertificateLocalDeploymentTemplate[]
@@ -569,6 +570,7 @@ export type ProfileSecurity = { localCredentialsAvailable: boolean; totpEnabled:
 export type TotpEnrollment = { secret: string; provisioningUri: string }
 export type LoginSettings = { graphicalVerificationEnabled: boolean; appliesToCurrentLogin: boolean }
 export type NotificationSettings = {
+  qqbot: { appId: string; appSecret: string; webhookUrl: string; bound: boolean }
   email: { provider: 'smtp' | 'sendcloud' | 'aliyun'; smtpServer: string; smtpPort: number | null; sender: string; password: string; apiUser: string; apiKey: string; recipient: string }
   wechat: { appToken: string; userId: string }
   telegram: { token: string; chatId: string; topicId: string; proxyMode: 'off' | 'system' | 'custom'; customBaseUrl: string }

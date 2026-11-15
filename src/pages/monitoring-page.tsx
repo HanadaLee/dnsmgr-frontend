@@ -747,6 +747,11 @@ export function MonitoringPage() {
                         kind: "switch",
                       },
                       {
+                        name: "qqbot",
+                        label: "QQ 机器人",
+                        kind: "switch",
+                      },
+                      {
                         name: "customWebhook",
                         label: "自定义 Webhook",
                         kind: "switch",

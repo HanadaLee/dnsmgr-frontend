@@ -35,6 +35,7 @@ const notificationChannels: Array<[keyof CertificateSettings['notifications'], s
   ['email', '邮件'],
   ['wechat', '微信'],
   ['telegram', 'Telegram'],
+  ['qqbot', 'QQ 机器人'],
   ['robotWebhook', '群机器人 Webhook'],
   ['customWebhook', '自定义 Webhook'],
 ]

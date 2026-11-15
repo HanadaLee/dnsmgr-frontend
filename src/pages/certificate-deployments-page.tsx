@@ -25,7 +25,7 @@ import type {
 } from "@/api/types";
 import { ConfirmAction } from "@/components/confirm-action";
 import { DataTable, type DataColumn } from "@/components/data-table";
-import { defaultsForFields, DynamicFields } from "@/components/dynamic-fields";
+import { defaultsForFields, DynamicFields, serializeDynamicFields } from "@/components/dynamic-fields";
 import { FormDialog } from "@/components/form-dialog";
 import { ListPagination } from "@/components/list-pagination";
 import { LoadingTable } from "@/components/loading-table";
@@ -785,7 +785,7 @@ function DeploymentEditor({
     if (!open || !detail.data) return;
     setAccountId(String(detail.data.accountId));
     setOrderId(String(detail.data.orderId));
-    setConfig(detail.data.config);
+    setConfig({ ...defaultsForFields(form?.accountTypes.find((item) => item.type === detail.data.accountType)?.taskFields ?? []), ...detail.data.config });
     setLocalTemplateId(
       detail.data.accountType === "local"
         && detail.data.templateId
@@ -794,7 +794,7 @@ function DeploymentEditor({
         : CUSTOM_TEMPLATE_VALUE,
     );
     setRemark(detail.data.remark ?? "");
-  }, [detail.data, localSettings?.templates, open]);
+  }, [detail.data, form?.accountTypes, localSettings?.templates, open]);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={trigger} />
@@ -816,7 +816,7 @@ function DeploymentEditor({
                       pfx_file: renderDeploymentTemplate(localTemplate.pfxPathTemplate, selectedOrder),
                       cmd: renderDeploymentTemplate(localTemplate.commandTemplate, selectedOrder),
                     }
-                  : config,
+                  : serializeDynamicFields(definition?.taskFields ?? [], config, event.currentTarget),
                 remark: remark || null,
               },
               { onSuccess: () => setOpen(false) },

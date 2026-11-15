@@ -1,10 +1,12 @@
 import type { ProviderField } from '@/api/types'
+import { TagsInput } from '@/components/tags-input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldTitle } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { appendTagValues } from '@/lib/tag-values'
 
 function isVisible(field: ProviderField, values: Record<string, unknown>): boolean {
   if (!field.visibleWhen) return true
@@ -28,6 +30,17 @@ function inputContract(field: ProviderField) {
 
 export function defaultsForFields(fields: ProviderField[]): Record<string, unknown> {
   return Object.fromEntries(fields.map((field) => [field.key, field.defaultValue ?? (field.control === 'checkbox' ? false : field.control === 'checkboxes' ? [] : '')]))
+}
+
+export function serializeDynamicFields(fields: ProviderField[], values: Record<string, unknown>, form: HTMLFormElement): Record<string, unknown> {
+  const next = { ...values }
+  const data = new FormData(form)
+  for (const field of fields) {
+    if (field.control !== 'tags' || field.disabled || !isVisible(field, values)) continue
+    const draft = data.get(field.key)
+    next[field.key] = appendTagValues(values[field.key], typeof draft === 'string' ? draft : '')
+  }
+  return next
 }
 
 export function DynamicFields({
@@ -94,7 +107,10 @@ export function DynamicFields({
         return (
           <Field key={field.key} data-disabled={field.disabled || undefined}>
             <FieldLabel htmlFor={field.key}>{field.label}</FieldLabel>
-            {field.control === 'textarea' ? (
+            {field.control === 'tags' ? (
+              <TagsInput id={field.key} value={values[field.key]} required={field.required} disabled={field.disabled}
+                placeholder={field.placeholder} onChange={(next) => onChange({ ...values, [field.key]: next })} />
+            ) : field.control === 'textarea' ? (
               <Textarea
                 id={field.key}
                 value={value}
@@ -106,6 +122,8 @@ export function DynamicFields({
             ) : field.control === 'select' || field.control === 'radio' ? (
               <Select
                 items={field.options ?? []}
+                name={field.key}
+                required={field.required}
                 value={value || null}
                 disabled={field.disabled}
                 onValueChange={(next) => onChange({ ...values, [field.key]: next ?? '' })}
